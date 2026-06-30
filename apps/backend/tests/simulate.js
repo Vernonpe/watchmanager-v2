@@ -607,7 +607,7 @@ async function runTests() {
 }
 
 // Boot up Mongoose connection and run setups
-mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/WatchManager')
+mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/WatchManagerV2')
   .then(async () => {
     try {
       await setupTestData();

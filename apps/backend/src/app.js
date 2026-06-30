@@ -11,7 +11,7 @@ const adminRoutes = require('./routes/admin');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/WatchManager';
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/WatchManagerV2';
 
 // Express setup
 app.use(cors());
