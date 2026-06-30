@@ -175,6 +175,13 @@
             <Background pattern-color="#aaa" gap="16" />
             <Controls />
 
+            <!-- Active Journey Title Overlay -->
+            <div class="canvas-active-title-overlay glass-panel animate-slide-down">
+              <span class="active-title-label">Editing Blueprint</span>
+              <span class="active-title-name">{{ journeyName || 'New Blueprint' }}</span>
+              <span class="active-title-id"><code>{{ journeyId || 'unsaved' }}</code></span>
+            </div>
+
             <!-- FLOATING TOOLBAR -->
             <div class="canvas-toolbar glass-panel">
               <button class="toolbar-btn" @click="zoomIn" title="Zoom In">
@@ -1901,5 +1908,62 @@ input:checked + .switch-slider:before {
   background: var(--accent-cyan);
   color: #000;
   border-color: var(--accent-cyan);
+}
+
+/* Active Blueprint Canvas Title Overlay Styles */
+.canvas-active-title-overlay {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 16px;
+  z-index: 10;
+  border-radius: 10px;
+  background: rgba(10, 15, 30, 0.7);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-dark);
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+}
+
+.canvas-active-title-overlay .active-title-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent-cyan);
+}
+
+.canvas-active-title-overlay .active-title-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.canvas-active-title-overlay .active-title-id {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.canvas-active-title-overlay .active-title-id code {
+  color: var(--accent-purple);
+  font-family: var(--font-mono);
+}
+
+.animate-slide-down {
+  animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 </style>
