@@ -2,7 +2,7 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 const { SysNodeDefinitions } = require('../src/db/schemas');
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/watch_manager';
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/WatchManagerV2';
 
 const seedNodes = async () => {
   try {
