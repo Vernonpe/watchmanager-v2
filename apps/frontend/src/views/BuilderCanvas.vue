@@ -317,7 +317,7 @@
 
             <template #node-prompt_list="props">
               <div class="custom-node list-node">
-                <div class="node-header"><span class="icon">📋</span> Prompt List</div>
+                <div class="node-header"><span class="icon">📱</span> Prompt List</div>
                 <div class="node-custom-label" v-if="(nodes.find(n => n.id === props.id)?.label)">{{ nodes.find(n => n.id === props.id)?.label }}</div>
                 <div class="node-body"><i>Var:</i> {{ (nodes.find(n => n.id === props.id)?.config)?.input_variable }}</div>
                 <Handle type="target" :position="Position.Left" id="default" class="custom-handle" />
@@ -367,7 +367,7 @@
 
               <template #node-action_jump="props">
                 <div class="custom-node jump-node" style="border-left: 4px solid #a855f7;">
-                  <div class="node-header"><span class="icon">↪️</span> Jump to Blueprint</div>
+                  <div class="node-header"><span class="icon">🔁</span> Jump to Blueprint</div>
                   <div class="node-custom-label" v-if="(nodes.find(n => n.id === props.id)?.label)">{{ nodes.find(n => n.id === props.id)?.label }}</div>
                   <div class="node-body"><i>Target:</i> {{ (nodes.find(n => n.id === props.id)?.config)?.target_journey_id || 'None' }}</div>
                   <Handle type="target" :position="Position.Left" id="default" class="custom-handle" />
@@ -666,6 +666,12 @@
                 <div class="form-group">
                   <label>Variable Path</label>
                   <input v-model="selectedNode.config.variable" type="text" class="glass-input" placeholder="collected_data.fullname" />
+                  <div class="variable-picker" v-if="availableVariables.length > 0">
+                    <span class="picker-label">Insert Token:</span>
+                    <button v-for="v in availableVariables" :key="v" class="var-pill" @click="insertVariable(v, 'variable')" title="Insert variable">
+                      {{ v }}
+                    </button>
+                  </div>
                 </div>
                 <div class="form-group">
                   <label>Operator</label>
@@ -678,6 +684,12 @@
                 <div class="form-group">
                   <label>Compare Value</label>
                   <input v-model="selectedNode.config.value" type="text" class="glass-input" placeholder="e.g. 1234" />
+                  <div class="variable-picker" v-if="availableVariables.length > 0">
+                    <span class="picker-label">Insert Token:</span>
+                    <button v-for="v in availableVariables" :key="v" class="var-pill" @click="insertVariable(v, 'value')" title="Insert variable">
+                      {{ v }}
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -2126,6 +2138,130 @@ onMounted(() => {
   color: var(--text-muted) !important;
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+
+/* Missing Generic Form & Button Group Layouts */
+.row-align-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.switch-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.options-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+  margin-bottom: 12px;
+}
+
+.options-header h4 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--accent-cyan);
+}
+
+.form-group-inline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.form-group-inline label {
+  min-width: 90px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-bottom: 0;
+}
+
+.button-group-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  transition: border-color 0.2s;
+}
+
+.button-group-card:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.button-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-light);
+}
+
+.buttons-builder-list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Switch container toggle */
+.switch-container {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.switch-container input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.1);
+  transition: .3s;
+  border-radius: 34px;
+  border: 1px solid var(--border-light);
+}
+
+.switch-slider:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background-color: var(--text-muted);
+  transition: .3s;
+  border-radius: 50%;
+}
+
+input:checked + .switch-slider {
+  background-color: rgba(0, 220, 200, 0.2);
+  border-color: var(--accent-cyan);
+}
+
+input:checked + .switch-slider:before {
+  transform: translateX(22px);
+  background-color: var(--accent-cyan);
 }
 
 /* --- VueFlow Custom Node Styles --- */
