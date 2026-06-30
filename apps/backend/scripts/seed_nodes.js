@@ -43,6 +43,8 @@ const seedNodes = async () => {
         default_config: {
           message: '',
           input_variable: '',
+          single_output: false,
+          hidden_keywords: '',
           buttons: [{ id: 'opt_1', title: 'Option 1' }],
           fallback_template_name: '',
           fallback_template_params: []
@@ -58,6 +60,8 @@ const seedNodes = async () => {
           button_text: 'View Options',
           description: '',
           input_variable: '',
+          single_output: false,
+          hidden_keywords: '',
           sections: [
             {
               title: 'Options',
@@ -90,6 +94,13 @@ const seedNodes = async () => {
         icon_emoji: '🔀',
         palette_badge_class: 'condition-badge',
         default_config: { variable: '', operator: 'equals', value: '' }
+      },
+      {
+        type: 'action_jump',
+        label: 'Jump to Blueprint',
+        icon_emoji: '↪️',
+        palette_badge_class: 'action-badge',
+        default_config: { target_journey_id: '' }
       }
     ];
 

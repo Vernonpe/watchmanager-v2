@@ -9,91 +9,6 @@ async function runInterpreterLoop(session, webhookPayload, credentials) {
   const userMessageText = (webhookPayload.message && webhookPayload.message.text || '').trim();
   const selectedChoiceId = webhookPayload.message && webhookPayload.message.payload; // From quick-replies / lists
 
-  // 0. Intercept if user is currently at the Main Menu
-  if (session.is_at_main_menu) {
-    const menuObj = await mongoose.model('builder_menus').findOne({ tenant_id: session.tenant_id, enabled: true });
-    if (!menuObj) {
-      // Main menu disabled mid-session, clear flag and continue to normal loop
-      session.is_at_main_menu = false;
-      await session.save();
-    } else {
-      const normalizedInput = userMessageText.toLowerCase().trim();
-      // Match option number or option label text
-      const matchedItem = menuObj.items.find(item => {
-        return item.index.toString() === normalizedInput || item.label.toLowerCase().trim() === normalizedInput;
-      });
-
-      if (matchedItem) {
-        const targetJourney = await mongoose.model('builder_journeys').findOne({
-          tenant_id: session.tenant_id,
-          journey_id: matchedItem.target_journey_id,
-          is_active: true
-        });
-
-        if (targetJourney && targetJourney.nodes && targetJourney.nodes.length > 0) {
-          console.log(`[Interpreter Menu] Transitioning user ${session.mobile} to journey: ${targetJourney.journey_id}`);
-          
-          let startNodeId = targetJourney.nodes[0].id;
-          const triggerNode = targetJourney.nodes.find(n => n.type === 'trigger_menu' && String(n.config.mapped_option) === String(matchedItem.index));
-          if (triggerNode) {
-            const outEdge = targetJourney.edges.find(e => e.source === triggerNode.id);
-            if (outEdge) startNodeId = outEdge.target;
-          } else {
-            // Fallback for journeys without explicit menu triggers
-            const genericMenuTrigger = targetJourney.nodes.find(n => n.type === 'trigger_menu');
-            if (genericMenuTrigger) {
-              const outEdge = targetJourney.edges.find(e => e.source === genericMenuTrigger.id);
-              if (outEdge) startNodeId = outEdge.target;
-            }
-          }
-
-          session.active_journey_id = targetJourney.journey_id;
-          session.current_node_id = startNodeId;
-          session.is_at_main_menu = false;
-          session.collected_data.clear();
-          session.state_history = [];
-          await session.save();
-
-          const firstNode = targetJourney.nodes.find(n => n.id === session.current_node_id);
-          await sendNodeWhatsAppPrompt(credentials, session.mobile, firstNode, session);
-          return;
-        } else {
-          await sendWhatsAppMessage(credentials, session.mobile, {
-            text: "This option is currently unavailable. Please select another option:"
-          });
-          await sendMainMenuPrompt(credentials, session.mobile, menuObj, session);
-          return;
-        }
-      } else {
-        // Option didn't match. Check if they entered exit keyword
-        const exitKeywords = ['exit', 'stop'];
-        if (exitKeywords.includes(normalizedInput)) {
-          session.is_at_main_menu = false;
-          session.collected_data.clear();
-          session.state_history = [];
-          const defaultJourney = await mongoose.model('builder_journeys').findOne({ tenant_id: session.tenant_id, is_active: true });
-          if (defaultJourney) {
-            session.active_journey_id = defaultJourney.journey_id;
-            session.current_node_id = defaultJourney.nodes[0].id;
-            await session.save();
-            await sendWhatsAppMessage(credentials, session.mobile, { text: "Conversation reset. Starting over." });
-            await sendNodeWhatsAppPrompt(credentials, session.mobile, defaultJourney.nodes[0], session);
-          } else {
-            await session.save();
-            await sendWhatsAppMessage(credentials, session.mobile, { text: "Session reset." });
-          }
-          return;
-        }
-
-        await sendWhatsAppMessage(credentials, session.mobile, {
-          text: "Invalid selection. Please reply with the option number (e.g. 1):"
-        });
-        await sendMainMenuPrompt(credentials, session.mobile, menuObj, session);
-        return;
-      }
-    }
-  }
-
   // 1. Load active compiled journey graph
   const journey = await mongoose.model('builder_journeys').findOne({
     tenant_id: session.tenant_id,
@@ -226,15 +141,28 @@ async function runInterpreterLoop(session, webhookPayload, credentials) {
   } 
   
   else if (currentNode.type === 'prompt_buttons' || currentNode.type === 'prompt_list') {
-    if (!selectedChoiceId) {
-      // No reply payload found (either they typed text or it's a fresh prompt)
+    let resolvedChoice = selectedChoiceId;
+    
+    // Check if they typed a hidden keyword manually
+    if (!resolvedChoice && userMessageText) {
+      const hiddenKws = (currentNode.config.hidden_keywords || '').split(',').map(s => s.trim()).filter(Boolean);
+      const typed = userMessageText.toLowerCase();
+      // Case insensitive match against defined keywords
+      const matchedKw = hiddenKws.find(kw => kw.toLowerCase() === typed);
+      if (matchedKw) {
+        resolvedChoice = matchedKw;
+      }
+    }
+
+    if (!resolvedChoice) {
+      // No reply payload or matching keyword found (either invalid text or fresh prompt)
       await sendNodeWhatsAppPrompt(credentials, session.mobile, currentNode, session);
       return;
     }
     
-    session.collected_data.set(currentNode.config.input_variable, selectedChoiceId);
+    session.collected_data.set(currentNode.config.input_variable, resolvedChoice);
     session.state_history.push(currentNode.id);
-    exitHandle = selectedChoiceId; // Route along the edge matching the button/list selection ID
+    exitHandle = resolvedChoice; // Route along the edge matching the button/list selection ID or matched keyword
   }
 
   else if (currentNode.type === 'action_http') {
@@ -324,6 +252,33 @@ async function runInterpreterLoop(session, webhookPayload, credentials) {
     }
 
     exitHandle = isMatch ? 'true' : 'false';
+  }
+
+  else if (currentNode.type === 'action_jump') {
+    const targetJourneyId = currentNode.config.target_journey_id;
+    if (targetJourneyId) {
+      const targetJourney = await mongoose.model('builder_journeys').findOne({
+        tenant_id: session.tenant_id,
+        journey_id: targetJourneyId,
+        is_active: true
+      });
+
+      if (targetJourney && targetJourney.nodes && targetJourney.nodes.length > 0) {
+        console.log(`[Interpreter Jump] Transitioning user ${session.mobile} to journey: ${targetJourney.journey_id}`);
+        session.active_journey_id = targetJourney.journey_id;
+        session.current_node_id = targetJourney.nodes[0].id; // Reset to start of new journey
+        session.state_history = []; // Clear history for the new journey scope
+        await session.save();
+        
+        // Immediately invoke interpreter recursively to process the first node of the new journey
+        return runInterpreterLoop(session, webhookPayload, credentials);
+      } else {
+        console.error(`[Interpreter] Jump target journey ${targetJourneyId} not found or disabled.`);
+        exitHandle = 'failure';
+      }
+    } else {
+      exitHandle = 'failure';
+    }
   }
 
   // 5. Traverse Matching Output Edge

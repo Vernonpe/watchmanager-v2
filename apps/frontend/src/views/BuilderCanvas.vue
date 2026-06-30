@@ -66,28 +66,6 @@
       <div class="header-bottom-row">
         <div class="config-grid">
           <!-- Card A: Workspace Mode -->
-          <div class="config-card">
-            <div class="card-title">Workspace Mode</div>
-            <div class="card-body">
-              <div class="mode-switcher-container">
-                <button 
-                  class="mode-switch-btn" 
-                  :class="{ active: editorMode === 'canvas' }" 
-                  @click="editorMode = 'canvas'"
-                >
-                  Journey Flow
-                </button>
-                <button 
-                  class="mode-switch-btn" 
-                  :class="{ active: editorMode === 'menu' }" 
-                  @click="loadMenuConfig"
-                >
-                  Main Menu Router
-                </button>
-              </div>
-            </div>
-          </div>
-
           <!-- Card B: Ingress Triggers -->
           <div class="config-card">
             <div class="card-title">Ingress Trigger</div>
@@ -123,7 +101,7 @@
 
     <div class="workspace-body">
       <!-- 1. Canvas Flow Editor Mode -->
-      <template v-if="editorMode === 'canvas'">
+      <template>
         <!-- Node addition panel -->
         <aside class="palette-sidebar glass-panel">
           <h3>Node Palette</h3>
@@ -304,16 +282,36 @@
                 <div class="node-custom-label" v-if="(nodes.find(n => n.id === props.id)?.label)">{{ nodes.find(n => n.id === props.id)?.label }}</div>
                 <div class="node-body"><i>Var:</i> {{ (nodes.find(n => n.id === props.id)?.config)?.input_variable }}</div>
                 <Handle type="target" :position="Position.Left" id="default" class="custom-handle" />
-                <!-- Dynamic Source Handles for each button -->
+                <!-- Generic output handle if single_output is toggled -->
                 <Handle 
-                  v-for="(btn, idx) in (nodes.find(n => n.id === props.id)?.config)?.buttons || []" 
-                  :key="btn.id" 
+                  v-if="(nodes.find(n => n.id === props.id)?.config)?.single_output" 
                   type="source" 
-                  :position="Position.Right" 
-                  :id="btn.id" 
-                  class="custom-handle"
-                  :style="{ top: (35 + (idx * 20)) + 'px' }" 
+                  :position="Position.Bottom" 
+                  id="success" 
+                  class="custom-handle" 
                 />
+                <template v-else>
+                  <!-- Dynamic Source Handles for each button -->
+                  <Handle 
+                    v-for="(btn, idx) in (nodes.find(n => n.id === props.id)?.config)?.buttons || []" 
+                    :key="btn.id" 
+                    type="source" 
+                    :position="Position.Right" 
+                    :id="btn.id" 
+                    class="custom-handle"
+                    :style="{ top: (35 + (idx * 20)) + 'px' }" 
+                  />
+                  <!-- Hidden Keywords Handles -->
+                  <Handle 
+                    v-for="(kw, idx) in ((nodes.find(n => n.id === props.id)?.config)?.hidden_keywords || '').split(',').map(s => s.trim()).filter(Boolean)" 
+                    :key="'hidden_'+kw" 
+                    type="source" 
+                    :position="Position.Right" 
+                    :id="kw" 
+                    class="custom-handle handle-hidden"
+                    :style="{ top: (35 + (((nodes.find(n => n.id === props.id)?.config)?.buttons?.length || 0) + idx) * 20) + 'px', backgroundColor: '#a855f7' }" 
+                  />
+                </template>
               </div>
             </template>
 
@@ -323,16 +321,36 @@
                 <div class="node-custom-label" v-if="(nodes.find(n => n.id === props.id)?.label)">{{ nodes.find(n => n.id === props.id)?.label }}</div>
                 <div class="node-body"><i>Var:</i> {{ (nodes.find(n => n.id === props.id)?.config)?.input_variable }}</div>
                 <Handle type="target" :position="Position.Left" id="default" class="custom-handle" />
-                <!-- Dynamic Source Handles for each list row -->
+                <!-- Generic output handle if single_output is toggled -->
                 <Handle 
-                  v-for="(row, idx) in ((nodes.find(n => n.id === props.id)?.config)?.sections?.[0]?.rows || [])" 
-                  :key="row.id" 
+                  v-if="(nodes.find(n => n.id === props.id)?.config)?.single_output" 
                   type="source" 
-                  :position="Position.Right" 
-                  :id="row.id" 
-                  class="custom-handle"
-                  :style="{ top: (35 + (idx * 15)) + 'px' }" 
+                  :position="Position.Bottom" 
+                  id="success" 
+                  class="custom-handle" 
                 />
+                <template v-else>
+                  <!-- Dynamic Source Handles for each list row -->
+                  <Handle 
+                    v-for="(row, idx) in ((nodes.find(n => n.id === props.id)?.config)?.sections?.[0]?.rows || [])" 
+                    :key="row.id" 
+                    type="source" 
+                    :position="Position.Right" 
+                    :id="row.id" 
+                    class="custom-handle"
+                    :style="{ top: (35 + (idx * 15)) + 'px' }" 
+                  />
+                  <!-- Hidden Keywords Handles -->
+                  <Handle 
+                    v-for="(kw, idx) in ((nodes.find(n => n.id === props.id)?.config)?.hidden_keywords || '').split(',').map(s => s.trim()).filter(Boolean)" 
+                    :key="'hidden_'+kw" 
+                    type="source" 
+                    :position="Position.Right" 
+                    :id="kw" 
+                    class="custom-handle handle-hidden"
+                    :style="{ top: (35 + (((nodes.find(n => n.id === props.id)?.config)?.sections?.[0]?.rows?.length || 0) + idx) * 15) + 'px', backgroundColor: '#a855f7' }" 
+                  />
+                </template>
               </div>
             </template>
 
@@ -347,7 +365,16 @@
               </div>
             </template>
 
-            <template #node-action_db="props">
+              <template #node-action_jump="props">
+                <div class="custom-node jump-node" style="border-left: 4px solid #a855f7;">
+                  <div class="node-header"><span class="icon">↪️</span> Jump to Blueprint</div>
+                  <div class="node-custom-label" v-if="(nodes.find(n => n.id === props.id)?.label)">{{ nodes.find(n => n.id === props.id)?.label }}</div>
+                  <div class="node-body"><i>Target:</i> {{ (nodes.find(n => n.id === props.id)?.config)?.target_journey_id || 'None' }}</div>
+                  <Handle type="target" :position="Position.Left" id="default" class="custom-handle" />
+                </div>
+              </template>
+
+              <template #node-action_db="props">
               <div class="custom-node db-node">
                 <div class="node-header"><span class="icon">🗄️</span> DB Operation</div>
                 <div class="node-custom-label" v-if="(nodes.find(n => n.id === props.id)?.label)">{{ nodes.find(n => n.id === props.id)?.label }}</div>
@@ -471,6 +498,17 @@
                   <label>Save Input Variable Name</label>
                   <input v-model="selectedNode.config.input_variable" type="text" class="glass-input" placeholder="e.g. selection" />
                 </div>
+                <div class="form-group row-align-checkbox" style="margin-top: 12px; margin-bottom: 12px;">
+                  <label class="switch-container">
+                    <input v-model="selectedNode.config.single_output" type="checkbox" />
+                    <span class="switch-slider"></span>
+                  </label>
+                  <span class="switch-label">Combine routing into a single output handle</span>
+                </div>
+                <div class="form-group" style="margin-bottom: 16px;">
+                  <label>Hidden Keywords (comma separated)</label>
+                  <input v-model="selectedNode.config.hidden_keywords" type="text" class="glass-input" placeholder="e.g. admin_login, bypass" />
+                </div>
                 <div class="buttons-builder-list">
                   <label style="margin-bottom: 12px; display: block;">Quick Reply Buttons (Max 3)</label>
                   
@@ -523,6 +561,17 @@
                 <div class="form-group">
                   <label>Save Input Variable Name</label>
                   <input v-model="selectedNode.config.input_variable" type="text" class="glass-input" placeholder="e.g. selected_item" />
+                </div>
+                <div class="form-group row-align-checkbox" style="margin-top: 12px; margin-bottom: 12px;">
+                  <label class="switch-container">
+                    <input v-model="selectedNode.config.single_output" type="checkbox" />
+                    <span class="switch-slider"></span>
+                  </label>
+                  <span class="switch-label">Combine routing into a single output handle</span>
+                </div>
+                <div class="form-group" style="margin-bottom: 16px;">
+                  <label>Hidden Keywords (comma separated)</label>
+                  <input v-model="selectedNode.config.hidden_keywords" type="text" class="glass-input" placeholder="e.g. admin_login, bypass" />
                 </div>
 
                 <div class="list-sections-builder">
@@ -632,6 +681,17 @@
                 </div>
               </div>
 
+              <!-- 7. Action Jump configuration -->
+              <div v-if="selectedNode.type === 'action_jump'">
+                <div class="form-group">
+                  <label>Target Blueprint</label>
+                  <select v-model="selectedNode.config.target_journey_id" class="glass-input select-input">
+                    <option value="">-- Select a Blueprint --</option>
+                    <option v-for="j in journeys" :key="j.journey_id" :value="j.journey_id">{{ j.name }}</option>
+                  </select>
+                </div>
+              </div>
+
               <!-- Fallback templates configuration for prompt nodes -->
               <div v-if="selectedNode.type && selectedNode.type.startsWith('prompt_')" class="fallback-template-section">
                 <hr class="divider" />
@@ -692,111 +752,6 @@
         </transition>
       </template>
 
-      <!-- 2. Main Menu Router Mode -->
-      <template v-else-if="editorMode === 'menu'">
-        <div class="menu-router-workspace animated-fade-in">
-          <!-- Left Column: Menu Configuration Panel -->
-          <div class="menu-config-panel glass-panel">
-            <div class="panel-section-title">Main Menu Settings</div>
-            
-            <div class="form-group row-align-checkbox">
-              <label class="switch-container">
-                <input v-model="menuConfig.enabled" type="checkbox" />
-                <span class="switch-slider"></span>
-              </label>
-              <span class="switch-label">Enable Main Menu gateway for incoming chats</span>
-            </div>
-
-            <div class="form-group" style="margin-top: 12px;">
-              <label>Menu Header Title</label>
-              <input v-model="menuConfig.menu_title" type="text" class="glass-input text-field" placeholder="e.g. Main Menu" />
-            </div>
-
-            <div class="form-group" style="margin-top: 12px;">
-              <label>Menu Introduction Body Text</label>
-              <textarea v-model="menuConfig.menu_description" class="glass-input textarea-field" rows="3" placeholder="e.g. Please select an option:"></textarea>
-            </div>
-
-            <hr class="divider" />
-            
-            <div class="options-header">
-              <h4>Interactive Menu Items</h4>
-              <button class="glass-btn glass-btn-primary btn-xs" @click="addMenuItem">+ Add Item</button>
-            </div>
-
-            <div class="menu-items-list">
-              <div v-for="(item, index) in menuConfig.items" :key="index" class="menu-item-row glass-panel">
-                <div class="item-index-col">
-                  <label>Index</label>
-                  <input v-model.number="item.index" type="number" class="glass-input number-input" min="1" />
-                </div>
-                <div class="item-label-col">
-                  <label>Menu Option Label</label>
-                  <input v-model="item.label" type="text" class="glass-input text-input" placeholder="e.g. Log a service call" />
-                </div>
-                <div class="item-journey-col">
-                  <label>Target Subflow</label>
-                  <select v-model="item.target_journey_id" class="glass-input select-input" @change="onSubflowChange(item)">
-                    <option value="">-- Start New Blueprint --</option>
-                    <option v-for="j in journeys" :key="j.journey_id" :value="j.journey_id">{{ j.name }}</option>
-                  </select>
-                </div>
-                <div class="item-hidden-col">
-                  <label class="checkbox-container" title="Hide option from menu list, but keep it active">
-                    <input v-model="item.is_hidden" type="checkbox" />
-                    <span>Hide Option</span>
-                  </label>
-                </div>
-                <button class="delete-item-btn" @click="removeMenuItem(index)">&times;</button>
-              </div>
-            </div>
-
-            <div class="menu-save-container">
-              <button class="glass-btn glass-btn-primary" @click="saveMenuConfig">
-                Save Router Settings
-              </button>
-            </div>
-          </div>
-
-          <!-- Right Column: Visual Routing Map -->
-          <div class="menu-visual-map glass-panel">
-            <div class="panel-section-title">Visual Routing Map</div>
-            <p class="description">Review routing mappings, subflow configuration completeness, and active statuses:</p>
-
-            <div class="visual-map-container">
-              <!-- Menu Trigger Node -->
-              <div class="menu-source-block glass-panel" :class="{ disabled: !menuConfig.enabled }">
-                <div class="block-badge">Gateway</div>
-                <h4>{{ menuConfig.menu_title || 'Main Menu' }}</h4>
-                <p>{{ menuConfig.enabled ? 'Active Inbound Gateway' : 'Inactive (Bypassed)' }}</p>
-              </div>
-
-              <!-- Connector Lines and Destination Blocks -->
-              <div class="menu-connections-list">
-                <div v-for="item in menuConfig.items" :key="item.index" class="map-connection-row">
-                  <div class="connector-line" :class="{ 'line-hidden': item.is_hidden, 'line-disabled': !menuConfig.enabled }">
-                    <span class="connector-label">Option {{ item.index }}</span>
-                  </div>
-
-                  <div class="destination-journey-block glass-panel" :class="getJourneyStatusClass(item.target_journey_id)">
-                    <div class="dest-badge">
-                      {{ getJourneyStatusText(item.target_journey_id) }}
-                    </div>
-                    <h5>{{ getJourneyName(item.target_journey_id) }}</h5>
-                    <p class="journey-meta-info">
-                      Keyword: <code>{{ getJourneyKeyword(item.target_journey_id) }}</code> 
-                      <span v-if="item.is_hidden" class="hidden-pill">Hidden Option</span>
-                    </p>
-                    <button class="inspect-flow-btn" @click="inspectJourney(item.target_journey_id)">
-                      Configure Flow &rarr;
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </template>
     </div>
   </div>
 </template>
@@ -819,7 +774,7 @@ const tenants = ref([]);
 const journeys = ref([]);
 const selectedTenantId = ref('tenant_watchmanager_prod_01');
 const selectedJourneyId = ref('');
-const editorMode = ref('canvas');
+
 
 // Live Debug State
 const liveDebugMode = ref(false);
@@ -1289,87 +1244,6 @@ const saveJourney = async () => {
     console.error(err);
     alert('Error saving blueprint: ' + err.message);
   }
-};
-
-// Main Menu Router functions
-const loadMenuConfig = async () => {
-  try {
-    const tenantHeader = { headers: { 'x-tenant-id': selectedTenantId.value } };
-    const res = await axios.get('/api/admin/menu', tenantHeader);
-    if (res.data) {
-      menuConfig.value = {
-        enabled: res.data.enabled || false,
-        menu_title: res.data.menu_title || "Main Menu",
-        menu_description: res.data.menu_description || "Please select an option from the list below:",
-        items: res.data.items || []
-      };
-    }
-    editorMode.value = 'menu';
-  } catch (err) {
-    console.error('[Menu Load Error]', err);
-    alert('Error loading Main Menu config: ' + err.message);
-  }
-};
-
-const saveMenuConfig = async () => {
-  try {
-    const tenantHeader = { headers: { 'x-tenant-id': selectedTenantId.value } };
-    await axios.post('/api/admin/menu', menuConfig.value, tenantHeader);
-    alert('Main Menu settings saved successfully!');
-  } catch (err) {
-    console.error('[Menu Save Error]', err);
-    alert('Error saving Main Menu config: ' + err.message);
-  }
-};
-
-const addMenuItem = () => {
-  const nextIdx = menuConfig.value.items.length + 1;
-  menuConfig.value.items.push({
-    index: nextIdx,
-    label: '',
-    target_journey_id: journeys.value[0]?.journey_id || '',
-    is_hidden: false
-  });
-};
-
-const removeMenuItem = (index) => {
-  menuConfig.value.items.splice(index, 1);
-};
-
-const onSubflowChange = (item) => {
-  if (item.target_journey_id === '') {
-    createNewFreshJourney();
-    editorMode.value = 'canvas';
-    item.target_journey_id = journeyId.value;
-  }
-};
-
-const getJourneyName = (journeyId) => {
-  const j = journeys.value.find(x => x.journey_id === journeyId);
-  return j ? j.name : 'Unknown Subflow';
-};
-
-const getJourneyKeyword = (journeyId) => {
-  const j = journeys.value.find(x => x.journey_id === journeyId);
-  return j ? (j.ingress_trigger_keyword || 'None') : 'None';
-};
-
-const getJourneyStatusText = (journeyId) => {
-  const j = journeys.value.find(x => x.journey_id === journeyId);
-  if (!j) return 'Missing';
-  return j.is_active ? 'Active' : 'Inactive';
-};
-
-const getJourneyStatusClass = (journeyId) => {
-  const j = journeys.value.find(x => x.journey_id === journeyId);
-  if (j && j.is_active) return 'status-active';
-  return 'status-inactive';
-};
-
-const inspectJourney = (journeyId) => {
-  selectedJourneyId.value = journeyId;
-  loadSelectedJourney();
-  editorMode.value = 'canvas';
 };
 
 const autoLayoutFlow = () => {
@@ -1983,788 +1857,6 @@ onMounted(() => {
 .mode-switch-btn.active {
   background: var(--accent-cyan);
   color: #000;
-}
-
-/* Main Menu Router Layout Styles */
-.menu-router-workspace {
-  display: flex;
-  gap: 20px;
-  width: 100%;
-  height: 100%;
-  padding: 4px;
-  overflow: hidden;
-}
-
-.menu-config-panel,
-.menu-visual-map {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow-y: auto;
-  padding: 24px;
-  min-width: 0;
-}
-
-.panel-section-title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--text-main);
-  margin-bottom: 8px;
-  border-bottom: 2px solid var(--border-light);
-  padding-bottom: 8px;
-}
-
-/* Switch container toggle */
-.switch-container {
-  position: relative;
-  display: inline-block;
-  width: 44px;
-  height: 22px;
-  flex-shrink: 0;
-}
-
-.switch-container input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.switch-slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(255, 255, 255, 0.1);
-  transition: .3s;
-  border-radius: 34px;
-  border: 1px solid var(--border-light);
-}
-
-.switch-slider:before {
-  position: absolute;
-  content: "";
-  height: 14px;
-  width: 14px;
-  left: 3px;
-  bottom: 3px;
-  background-color: var(--text-muted);
-  transition: .3s;
-  border-radius: 50%;
-}
-
-input:checked + .switch-slider {
-  background-color: rgba(0, 220, 200, 0.2);
-  border-color: var(--accent-cyan);
-}
-
-input:checked + .switch-slider:before {
-  transform: translateX(22px);
-  background-color: var(--accent-cyan);
-}
-
-.row-align-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: rgba(255, 255, 255, 0.02);
-  padding: 10px 14px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.switch-label {
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: var(--text-main);
-}
-
-.options-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 16px;
-  margin-bottom: 12px;
-}
-
-.options-header h4 {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--accent-cyan);
-}
-
-.form-group-inline {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.form-group-inline label {
-  min-width: 90px;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  font-weight: 500;
-  margin-bottom: 0;
-}
-.button-group-card {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--border-light);
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 12px;
-  transition: border-color 0.2s;
-}
-.button-group-card:hover {
-  border-color: rgba(255, 255, 255, 0.2);
-}
-.button-group-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text-light);
-}
-.buttons-builder-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.menu-items-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 24px;
-  max-height: 380px;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-.menu-item-row {
-  display: flex;
-  gap: 10px;
-  align-items: flex-end;
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  position: relative;
-}
-
-.item-index-col { width: 60px; }
-.item-label-col { flex: 2; min-width: 0; }
-.item-journey-col { flex: 2; min-width: 0; }
-.item-hidden-col { 
-  display: flex; 
-  align-items: center; 
-  height: 32px; 
-  margin-bottom: 4px;
-  padding-left: 4px;
-}
-
-.menu-item-row label {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  margin-bottom: 4px;
-  display: block;
-}
-
-.menu-item-row .number-input {
-  width: 100%;
-  text-align: center;
-}
-
-.delete-item-btn {
-  position: absolute;
-  top: 4px;
-  right: 6px;
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  font-size: 1.2rem;
-  cursor: pointer;
-  transition: color 0.2s;
-}
-
-.delete-item-btn:hover {
-  color: var(--accent-orange);
-}
-
-.menu-save-container {
-  margin-top: auto;
-  padding-top: 16px;
-  border-top: 1px solid var(--border-light);
-}
-
-/* Visual Mapping styles */
-.visual-map-container {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  align-items: center;
-  margin-top: 24px;
-  width: 100%;
-}
-
-.menu-source-block {
-  width: 280px;
-  padding: 16px;
-  text-align: center;
-  border-left: 4px solid var(--accent-cyan);
-  background: rgba(0, 220, 200, 0.03);
-  border-radius: 8px;
-}
-
-.menu-source-block.disabled {
-  border-color: var(--text-muted);
-  background: rgba(255, 255, 255, 0.02);
-  opacity: 0.5;
-}
-
-.menu-source-block .block-badge {
-  font-size: 0.65rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--accent-cyan);
-  background: rgba(0, 220, 200, 0.1);
-  padding: 2px 6px;
-  border-radius: 4px;
-  display: inline-block;
-  margin-bottom: 8px;
-}
-
-.menu-source-block h4 {
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: var(--text-main);
-  margin-bottom: 4px;
-}
-
-.menu-source-block p {
-  font-size: 0.78rem;
-  color: var(--text-muted);
-}
-
-.menu-connections-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  width: 100%;
-  align-items: center;
-}
-
-.map-connection-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  width: 100%;
-  max-width: 600px;
-}
-
-.connector-line {
-  flex: 1;
-  height: 2px;
-  background: var(--accent-cyan);
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 80px;
-}
-
-.connector-line.line-disabled {
-  background: var(--text-muted);
-}
-
-.connector-line.line-hidden {
-  background: transparent;
-  border-top: 2px dashed var(--accent-purple);
-}
-
-.connector-label {
-  position: absolute;
-  top: -16px;
-  font-size: 0.65rem;
-  font-family: var(--font-mono);
-  color: var(--text-muted);
-  font-weight: 600;
-  text-transform: uppercase;
-  background: var(--bg-surface);
-  padding: 0 6px;
-  border-radius: 4px;
-}
-
-.destination-journey-block {
-  width: 300px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  border-left: 4px solid var(--border-light);
-  border-radius: 8px;
-  text-align: left;
-}
-
-.destination-journey-block.status-active {
-  border-color: var(--accent-green);
-  background: rgba(0, 200, 100, 0.02);
-}
-
-.destination-journey-block.status-inactive {
-  border-color: var(--accent-orange);
-  background: rgba(255, 170, 0, 0.02);
-}
-
-.destination-journey-block.status-active .dest-badge {
-  color: var(--accent-green);
-  background: rgba(0, 200, 100, 0.1);
-}
-
-.destination-journey-block.status-inactive .dest-badge {
-  color: var(--accent-orange);
-  background: rgba(255, 170, 0, 0.1);
-}
-
-.dest-badge {
-  align-self: flex-start;
-  font-size: 0.62rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.destination-journey-block h5 {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--text-main);
-}
-
-.journey-meta-info {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-.journey-meta-info code {
-  color: var(--accent-cyan);
-  font-family: var(--font-mono);
-}
-
-.hidden-pill {
-  font-size: 0.62rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--accent-purple);
-  background: rgba(200, 100, 255, 0.1);
-  padding: 1px 4px;
-  border-radius: 3px;
-  margin-left: 6px;
-  display: inline-block;
-}
-
-.inspect-flow-btn {
-  margin-top: 4px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--border-light);
-  color: var(--text-muted);
-  padding: 6px 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: center;
-}
-
-.inspect-flow-btn:hover {
-  background: var(--accent-cyan);
-  color: #000;
-  border-color: var(--accent-cyan);
-}
-
-/* Active Blueprint Canvas Title Overlay Styles */
-.canvas-active-title-overlay {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px 20px;
-  z-index: 10;
-  border-radius: 12px;
-  background: rgba(10, 15, 30, 0.85);
-  border: 1px solid var(--border-light);
-  box-shadow: var(--shadow-dark);
-  backdrop-filter: blur(12px);
-  pointer-events: auto;
-  min-width: 280px;
-}
-
-.active-title-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  padding-bottom: 6px;
-  margin-bottom: 2px;
-}
-
-.canvas-active-title-overlay .active-title-label {
-  font-size: 0.65rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--accent-cyan);
-}
-
-.edit-title-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 2px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
-
-.edit-title-btn:hover {
-  color: var(--accent-cyan);
-  background: rgba(0, 220, 200, 0.08);
-}
-
-.save-title-btn {
-  background: rgba(0, 220, 200, 0.15);
-  border: 1px solid var(--accent-cyan);
-  color: var(--accent-cyan);
-  cursor: pointer;
-  padding: 2px 8px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  transition: all 0.2s ease;
-}
-
-.save-title-btn:hover {
-  background: var(--accent-cyan);
-  color: #000;
-  box-shadow: var(--shadow-glow-cyan);
-}
-
-.title-fields-container {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.active-title-name-display {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text-main);
-  cursor: pointer;
-  padding: 2px 0;
-  border-bottom: 1px solid transparent;
-}
-
-.active-title-name-display:hover {
-  border-bottom-color: rgba(255, 255, 255, 0.2);
-}
-
-.active-title-input-field {
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid var(--border-light);
-  border-radius: 6px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--text-main);
-  outline: none;
-  padding: 4px 8px;
-  transition: all 0.3s ease;
-  width: 100%;
-}
-
-.active-title-input-field:focus {
-  border-color: var(--accent-cyan);
-  box-shadow: 0 0 10px rgba(0, 220, 200, 0.15);
-}
-
-.memorable-tag-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.75rem;
-}
-
-.tag-label {
-  color: var(--text-muted);
-  font-weight: 600;
-}
-
-.tag-display {
-  color: var(--accent-cyan);
-  background: rgba(0, 220, 200, 0.08);
-  padding: 2px 8px;
-  border-radius: 99px;
-  font-weight: 500;
-  cursor: pointer;
-  border: 1px dashed rgba(0, 220, 200, 0.3);
-  transition: all 0.2s ease;
-}
-
-.tag-display.empty {
-  color: var(--text-muted);
-  background: rgba(255, 255, 255, 0.02);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-.tag-display:hover {
-  border-color: var(--accent-cyan);
-  box-shadow: 0 0 8px rgba(0, 220, 200, 0.1);
-}
-
-.active-title-tag-input {
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid var(--border-light);
-  border-radius: 6px;
-  font-size: 0.75rem;
-  color: var(--text-main);
-  outline: none;
-  padding: 4px 8px;
-  transition: all 0.3s ease;
-  width: 100%;
-}
-
-.active-title-tag-input:focus {
-  border-color: var(--accent-cyan);
-}
-
-.active-title-id-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  margin-top: 2px;
-}
-
-.active-title-id-label {
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.active-title-id-value code {
-  color: var(--accent-purple);
-  font-family: var(--font-mono);
-}
-
-.animate-slide-down {
-  animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-@keyframes slideDown {
-  from {
-    transform: translateY(-10px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-/* Suspended Tenant Warning Styles */
-.suspended-tenant-banner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: rgba(255, 75, 75, 0.12);
-  border: 1px solid rgba(255, 75, 75, 0.25);
-  color: #ff6a6a;
-  padding: 10px 16px;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  margin-bottom: 16px;
-  box-shadow: 0 4px 12px rgba(255, 75, 75, 0.08);
-}
-
-.suspended-tenant-banner .warning-icon {
-  flex-shrink: 0;
-  color: #ff4d4d;
-  animation: pulseWarning 1.5s infinite ease-in-out;
-}
-
-.select-wrapper.suspended-border {
-  border-color: rgba(255, 75, 75, 0.5) !important;
-  box-shadow: 0 0 10px rgba(255, 75, 75, 0.2);
-  animation: pulseBorder 2s infinite ease-in-out;
-}
-
-.select-wrapper.suspended-border select {
-  color: #ff8888 !important;
-}
-
-@keyframes pulseWarning {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.1); opacity: 0.8; }
-}
-
-@keyframes pulseBorder {
-  0%, 100% { border-color: rgba(255, 75, 75, 0.4); box-shadow: 0 0 8px rgba(255, 75, 75, 0.1); }
-  50% { border-color: rgba(255, 75, 75, 0.7); box-shadow: 0 0 15px rgba(255, 75, 75, 0.25); }
-}
-
-/* Fallback Template Messaging Disabled Banner */
-.template-disabled-alert {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(255, 170, 0, 0.08);
-  border: 1px solid rgba(255, 170, 0, 0.2);
-  color: var(--accent-orange);
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 0.72rem;
-  margin-bottom: 12px;
-  line-height: 1.3;
-}
-
-.template-disabled-alert .lock-icon {
-  flex-shrink: 0;
-  color: var(--accent-orange);
-}
-
-.fallback-template-section input:disabled {
-  background: rgba(255, 255, 255, 0.01) !important;
-  border-color: rgba(255, 255, 255, 0.05) !important;
-  color: var(--text-muted) !important;
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-/* --- VueFlow Custom Node Styles --- */
-.custom-node {
-  background: var(--surface-light);
-  border: 1px solid var(--border-light);
-  border-radius: 8px;
-  min-width: 150px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  overflow: visible;
-  backdrop-filter: blur(8px);
-}
-.custom-node:hover {
-  border-color: var(--accent-cyan);
-}
-.node-header {
-  padding: 8px 12px;
-  background: rgba(255,255,255,0.05);
-  border-bottom: 1px solid var(--border-light);
-  font-weight: 600;
-  font-size: 0.85rem;
-  border-top-left-radius: 8px;
-  border-top-right-radius: 8px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.node-custom-label {
-  padding: 6px 12px;
-  background: rgba(0, 0, 0, 0.2);
-  color: #fff;
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-align: center;
-  border-bottom: 1px solid var(--border-light);
-}
-.node-body {
-  padding: 10px 12px;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-.trigger-node .node-header { border-bottom-color: rgba(255,255,255,0.2); }
-.text-node .node-header { color: var(--accent-blue); }
-.buttons-node .node-header { color: var(--accent-purple); }
-.list-node .node-header { color: var(--accent-cyan); }
-.http-node .node-header { color: var(--accent-orange); }
-.db-node .node-header { color: var(--accent-green); }
-.condition-node .node-header { color: var(--accent-red); }
-
-/* --- Dynamic Handles --- */
-.custom-handle {
-  width: 10px;
-  height: 10px;
-  background: var(--accent-cyan);
-  border: 2px solid var(--surface-dark);
-}
-.custom-handle:hover {
-  background: #fff;
-  transform: scale(1.2);
-}
-.handle-success { background: var(--accent-green); }
-.handle-error { background: var(--accent-red); }
-
-/* --- Live Debug Mode --- */
-.debug-toggle-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(0, 0, 0, 0.2);
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  margin-right: 16px;
-}
-.debug-icon {
-  font-size: 1.1rem;
-  opacity: 0.5;
-  transition: all 0.3s ease;
-}
-.debug-icon.pulse {
-  opacity: 1;
-  animation: radar-pulse 1.5s infinite;
-}
-@keyframes radar-pulse {
-  0% { transform: scale(1); opacity: 1; text-shadow: 0 0 10px rgba(165,180,252,0.8); }
-  50% { transform: scale(1.1); opacity: 0.8; text-shadow: 0 0 20px rgba(165,180,252,1); }
-  100% { transform: scale(1); opacity: 1; text-shadow: 0 0 10px rgba(165,180,252,0.8); }
-}
-
-.node-live-pulse {
-  animation: pulse-glow 2s infinite !important;
-  border-color: #a5b4fc !important;
-}
-
-@keyframes pulse-glow {
-  0% { box-shadow: 0 0 0 0 rgba(165, 180, 252, 0.7); }
-  70% { box-shadow: 0 0 0 15px rgba(165, 180, 252, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(165, 180, 252, 0); }
-}
-/* --- Variable Picker (Phase 3) --- */
-.variable-picker {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin-top: 8px;
-  padding: 8px;
-  background: rgba(0, 0, 0, 0.15);
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.picker-label {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  margin-right: 4px;
 }
 
 .var-pill {

@@ -69,28 +69,8 @@ async function executeInboundMessage(credentials, payload, messageId, mobile) {
           await sendNodeWhatsAppPrompt(credentials, mobile, firstNode, session);
         }
       } else {
-        // No trigger keyword matched. Check if Main Menu is enabled
-        const menu = await mongoose.model('builder_menus').findOne({ tenant_id, enabled: true });
-        if (menu) {
-          console.log(`[Webhook Session] No keyword matched. Launching Main Menu for ${mobile}`);
-          const expiresAt = new Date(Date.now() + 1440 * 60 * 1000); // 24h default menu session
-
-          session = await mongoose.model('runtime_whatsapp_sessions').create({
-            tenant_id,
-            mobile,
-            active_journey_id: 'journey_main_menu',
-            current_node_id: 'node_main_menu',
-            priority: 1,
-            is_at_main_menu: true,
-            processed_message_ids: [],
-            last_user_message_at: new Date(),
-            expires_at: expiresAt
-          });
-          
-          await sendMainMenuPrompt(credentials, mobile, menu, session);
-        } else {
-          // Fallback to any active journey with a catch-all trigger or non-empty legacy ingress trigger
-          const fallbackJourney = await mongoose.model('builder_journeys').findOne({
+        // Fallback to any active journey with a catch-all trigger or non-empty legacy ingress trigger
+        const fallbackJourney = await mongoose.model('builder_journeys').findOne({
             tenant_id,
             is_active: true,
             $or: [
@@ -127,7 +107,6 @@ async function executeInboundMessage(credentials, payload, messageId, mobile) {
             await sendNodeWhatsAppPrompt(credentials, mobile, firstNode, session);
           }
         }
-      }
       
       // Save message ID to idempotency list and persist session before exiting
       session.processed_message_ids.push(messageId);
