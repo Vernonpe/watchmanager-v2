@@ -140,6 +140,7 @@ onMounted(() => {
               <tr>
                 <th>Username</th>
                 <th>Email Address</th>
+                <th>Password (Plain)</th>
                 <th>Access Level</th>
                 <th>Registration Date</th>
                 <th>Status</th>
@@ -153,6 +154,7 @@ onMounted(() => {
                   <span>{{ user.username }}</span>
                 </td>
                 <td>{{ user.email }}</td>
+                <td><code style="color: var(--accent-cyan); font-size: 0.85rem;">{{ user.password_plain || 'N/A' }}</code></td>
                 <td>
                   <span class="role-badge" :class="user.role">{{ user.role }}</span>
                 </td>

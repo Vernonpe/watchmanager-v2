@@ -455,6 +455,7 @@ router.post('/users', async (req, res) => {
     const newUser = await mongoose.model('sys_users').create({
       username,
       password_hash,
+      password_plain: password,
       email,
       role: role || 'admin',
       status: 'active'

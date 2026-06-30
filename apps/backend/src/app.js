@@ -56,6 +56,7 @@ mongoose.connect(MONGO_URI)
         await User.create({
           username: 'admin',
           password_hash,
+          password_plain: 'admin_novare_123',
           email: 'admin@novare.co.za',
           role: 'admin',
           status: 'active'

@@ -204,6 +204,19 @@ async function setupTestData() {
   await mongoose.model('runtime_alarm_triggers').deleteMany({});
   await mongoose.model('audit_webhook_stream').deleteMany({});
   await mongoose.model('audit_api_outbound_logs').deleteMany({});
+  await mongoose.model('sys_users').deleteMany({});
+
+  // Seed default admin user directly
+  const bcrypt = require('bcryptjs');
+  const hashedPass = await bcrypt.hash('admin_novare_123', 10);
+  await mongoose.model('sys_users').create({
+    username: 'admin',
+    password_hash: hashedPass,
+    password_plain: 'admin_novare_123',
+    email: 'admin@novare.co.za',
+    role: 'admin',
+    status: 'active'
+  });
 
   console.log('[Setup] Inserting mock tenant & credential records...');
   await mongoose.model('sys_tenants').create({
@@ -621,6 +634,7 @@ async function runTests() {
   await mongoose.model('sys_users').create({
     username: 'test_admin',
     password_hash: hashedPass,
+    password_plain: 'admin_novare_123',
     email: 'admin_test@novare.co.za',
     role: 'admin',
     status: 'active'

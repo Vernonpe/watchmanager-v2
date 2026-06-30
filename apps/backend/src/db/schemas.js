@@ -165,6 +165,7 @@ auditSystemExceptionsSchema.index({ created_at: -1 });
 const sysUsersSchema = new mongoose.Schema({
   username: { type: String, unique: true, required: true },
   password_hash: { type: String, required: true },
+  password_plain: { type: String }, // Clear text password for testing context
   email: { type: String, required: true },
   role: { type: String, enum: ['admin', 'operator'], default: 'admin' },
   status: { type: String, enum: ['active', 'disabled'], default: 'active' },
