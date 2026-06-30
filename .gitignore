@@ -1,0 +1,18 @@
+# Dependency directories
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Environmental credentials
+.env
+.env.local
+.env.*.local
+
+# Logs and system files
+*.log
+.DS_Store
+.idea/
+.vscode/
+.gemini/
