@@ -1,5 +1,15 @@
 <template>
   <div class="builder-view animated-fade-in">
+    <!-- Suspended Tenant Warning Banner -->
+    <div v-if="isCurrentTenantSuspended" class="suspended-tenant-banner animate-slide-down">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" class="warning-icon">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+        <line x1="12" y1="9" x2="12" y2="13" />
+        <line x1="12" y1="17" x2="12.01" y2="17" />
+      </svg>
+      <span><strong>WARNING:</strong> This tenant account is currently <strong>SUSPENDED</strong>. All messaging webhook endpoints and visual automated journeys are disabled.</span>
+    </div>
+
     <!-- Main workspace header -->
     <header class="workspace-header-layout glass-panel">
       <!-- Row 1: Scope Selection (Tenant / Edit Journey) & Actions -->
@@ -8,9 +18,11 @@
           <!-- Tenant Dropdown -->
           <div class="scope-item">
             <span class="scope-label">Tenant Scope</span>
-            <div class="select-wrapper">
+            <div class="select-wrapper" :class="{ 'suspended-border': isCurrentTenantSuspended }">
               <select v-model="selectedTenantId" class="glass-input select-input tenant-selector" @change="fetchJourneys">
-                <option v-for="t in tenants" :key="t.tenant_id" :value="t.tenant_id">{{ t.name }}</option>
+                <option v-for="t in tenants" :key="t.tenant_id" :value="t.tenant_id">
+                  {{ t.name }} {{ t.status === 'suspended' ? '⚠️ (SUSPENDED)' : '' }}
+                </option>
               </select>
             </div>
           </div>
@@ -586,6 +598,11 @@ const journeys = ref([]);
 const selectedTenantId = ref('tenant_watchmanager_prod_01');
 const selectedJourneyId = ref('');
 const editorMode = ref('canvas');
+
+const isCurrentTenantSuspended = computed(() => {
+  const t = tenants.value.find(x => x.tenant_id === selectedTenantId.value);
+  return t ? t.status === 'suspended' : false;
+});
 const menuConfig = ref({
   enabled: false,
   menu_title: 'Main Menu',
@@ -2174,5 +2191,46 @@ input:checked + .switch-slider:before {
     transform: translateY(0);
     opacity: 1;
   }
+}
+
+/* Suspended Tenant Warning Styles */
+.suspended-tenant-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 75, 75, 0.12);
+  border: 1px solid rgba(255, 75, 75, 0.25);
+  color: #ff6a6a;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 12px rgba(255, 75, 75, 0.08);
+}
+
+.suspended-tenant-banner .warning-icon {
+  flex-shrink: 0;
+  color: #ff4d4d;
+  animation: pulseWarning 1.5s infinite ease-in-out;
+}
+
+.select-wrapper.suspended-border {
+  border-color: rgba(255, 75, 75, 0.5) !important;
+  box-shadow: 0 0 10px rgba(255, 75, 75, 0.2);
+  animation: pulseBorder 2s infinite ease-in-out;
+}
+
+.select-wrapper.suspended-border select {
+  color: #ff8888 !important;
+}
+
+@keyframes pulseWarning {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.8; }
+}
+
+@keyframes pulseBorder {
+  0%, 100% { border-color: rgba(255, 75, 75, 0.4); box-shadow: 0 0 8px rgba(255, 75, 75, 0.1); }
+  50% { border-color: rgba(255, 75, 75, 0.7); box-shadow: 0 0 15px rgba(255, 75, 75, 0.25); }
 }
 </style>
