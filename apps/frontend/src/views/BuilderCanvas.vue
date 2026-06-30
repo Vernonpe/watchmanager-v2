@@ -300,7 +300,7 @@
                 <Handle 
                   v-if="(nodes.find(n => n.id === props.id)?.config)?.single_output" 
                   type="source" 
-                  :position="Position.Bottom" 
+                  :position="Position.Right" 
                   id="success" 
                   class="custom-handle" 
                 />
@@ -339,7 +339,7 @@
                 <Handle 
                   v-if="(nodes.find(n => n.id === props.id)?.config)?.single_output" 
                   type="source" 
-                  :position="Position.Bottom" 
+                  :position="Position.Right" 
                   id="success" 
                   class="custom-handle" 
                 />
