@@ -1,54 +1,95 @@
 <template>
   <div class="builder-view animated-fade-in">
     <!-- Main workspace header -->
-    <header class="workspace-header glass-panel">
-      <div class="workspace-info">
-        <div class="meta-item">
-          <span>Tenant:</span>
-          <select v-model="selectedTenantId" class="glass-input select-input selector-width" @change="fetchJourneys">
-            <option v-for="t in tenants" :key="t.tenant_id" :value="t.tenant_id">{{ t.name }}</option>
-          </select>
+    <header class="workspace-header-layout glass-panel">
+      <!-- Row 1: Scope Selection (Tenant / Edit Journey) & Actions -->
+      <div class="header-top-row">
+        <div class="scope-selectors">
+          <!-- Tenant Dropdown -->
+          <div class="scope-item">
+            <span class="scope-label">Tenant Scope</span>
+            <div class="select-wrapper">
+              <select v-model="selectedTenantId" class="glass-input select-input tenant-selector" @change="fetchJourneys">
+                <option v-for="t in tenants" :key="t.tenant_id" :value="t.tenant_id">{{ t.name }}</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Journey Selector -->
+          <div class="scope-item">
+            <span class="scope-label">Journey Blueprint</span>
+            <div class="select-wrapper">
+              <select v-model="selectedJourneyId" class="glass-input select-input journey-selector" @change="loadSelectedJourney">
+                <option value="">-- Start New Blueprint --</option>
+                <option v-for="j in journeys" :key="j.journey_id" :value="j.journey_id">{{ j.name }} ({{ j.journey_id }})</option>
+              </select>
+            </div>
+          </div>
         </div>
 
-        <div class="meta-item">
-          <span>Edit Journey:</span>
-          <select v-model="selectedJourneyId" class="glass-input select-input selector-width" @change="loadSelectedJourney">
-            <option value="">-- Start New --</option>
-            <option v-for="j in journeys" :key="j.journey_id" :value="j.journey_id">{{ j.name }} ({{ j.journey_id }})</option>
-          </select>
-        </div>
-
-        <input v-model="journeyId" type="text" class="journey-id-input glass-input" placeholder="journey_id (unique)" :disabled="!!selectedJourneyId" />
-        <input v-model="journeyName" type="text" class="journey-name-input glass-input" placeholder="Journey Name" />
-
-        <div class="meta-item">
-          <span>Keyword:</span>
-          <input v-model="triggerKeyword" type="text" class="trigger-keyword-input" placeholder="e.g. service" />
-        </div>
-        <div class="meta-item">
-          <span>Priority:</span>
-          <input v-model.number="priority" type="number" class="priority-input" min="1" max="10" />
-        </div>
-        <div class="meta-item">
-          <span>Timeout (m):</span>
-          <input v-model.number="sessionTimeout" type="number" class="priority-input" min="1" style="width: 60px;" />
-        </div>
-        <div class="meta-item">
-          <span>Exit Keys:</span>
-          <input v-model="exitKeywordsStr" type="text" class="trigger-keyword-input" placeholder="exit, stop" style="width: 100px;" />
+        <!-- Global Actions -->
+        <div class="workspace-actions">
+          <button class="glass-btn glass-btn-secondary" @click="addDemoFlow">Load Demo</button>
+          <button class="glass-btn glass-btn-secondary" @click="createNewFreshJourney">Clear Canvas</button>
+          <button class="glass-btn glass-btn-primary" @click="saveJourney">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+              <polyline points="17 21 17 13 7 13 7 21" />
+              <polyline points="7 3 7 8 15 8" />
+            </svg>
+            Save Blueprint
+          </button>
         </div>
       </div>
-      <div class="workspace-actions">
-        <button class="glass-btn glass-btn-secondary" @click="addDemoFlow">Load Demo</button>
-        <button class="glass-btn glass-btn-secondary" @click="createNewFreshJourney">Clear Canvas</button>
-        <button class="glass-btn glass-btn-primary" @click="saveJourney">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-            <polyline points="17 21 17 13 7 13 7 21" />
-            <polyline points="7 3 7 8 15 8" />
-          </svg>
-          Save Blueprint
-        </button>
+
+      <!-- Row 2: Journey Configuration Settings -->
+      <div class="header-bottom-row">
+        <div class="config-grid">
+          <!-- Card A: Identity -->
+          <div class="config-card">
+            <div class="card-title">Identity</div>
+            <div class="card-body">
+              <div class="input-group">
+                <label>Journey ID</label>
+                <input v-model="journeyId" type="text" class="glass-input card-input journey-id-field" placeholder="journey_id (unique)" :disabled="!!selectedJourneyId" />
+              </div>
+              <div class="input-group">
+                <label>Journey Name</label>
+                <input v-model="journeyName" type="text" class="glass-input card-input name-input-field" placeholder="Journey Name" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Card B: Ingress Triggers -->
+          <div class="config-card">
+            <div class="card-title">Ingress Trigger</div>
+            <div class="card-body">
+              <div class="input-group">
+                <label>Keyword</label>
+                <input v-model="triggerKeyword" type="text" class="glass-input card-input keyword-input-field" placeholder="e.g. service" />
+              </div>
+              <div class="input-group">
+                <label>Priority</label>
+                <input v-model.number="priority" type="number" class="glass-input card-input priority-input-field" min="1" max="10" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Card C: State Management -->
+          <div class="config-card">
+            <div class="card-title">Lifecycle & Expiration</div>
+            <div class="card-body">
+              <div class="input-group">
+                <label>Timeout (minutes)</label>
+                <input v-model.number="sessionTimeout" type="number" class="glass-input card-input timeout-input-field" min="1" />
+              </div>
+              <div class="input-group">
+                <label>Exit Keys</label>
+                <input v-model="exitKeywordsStr" type="text" class="glass-input card-input exit-input-field" placeholder="exit, stop" />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -790,71 +831,137 @@ onMounted(() => {
   gap: 16px;
 }
 
-.workspace-header {
-  height: 70px;
-  padding: 0 24px;
+.workspace-header-layout {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.workspace-info {
-  display: flex;
-  align-items: center;
+  flex-direction: column;
+  padding: 16px 24px;
   gap: 16px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-glass);
+  border-radius: 12px;
 }
 
-.selector-width {
-  width: 140px;
-}
-
-.journey-id-input {
-  width: 130px;
-}
-
-.journey-name-input {
-  background: transparent;
-  border: none;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--text-main);
-  border-bottom: 2px solid transparent;
-  outline: none;
-  width: 200px;
-  transition: var(--transition-smooth);
-}
-
-.journey-name-input:focus {
-  border-color: var(--accent-cyan);
-}
-
-.meta-item {
+.header-top-row {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 8px;
-  font-size: 0.9rem;
+  width: 100%;
+}
+
+.scope-selectors {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}
+
+.scope-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.scope-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent-cyan);
+}
+
+.tenant-selector,
+.journey-selector {
+  width: 220px;
+}
+
+.header-bottom-row {
+  border-top: 1px solid var(--border-glass);
+  padding-top: 12px;
+}
+
+.config-grid {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.config-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.config-card .card-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: var(--text-muted);
 }
 
-.trigger-keyword-input {
-  width: 100px;
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid var(--border-light);
-  color: var(--text-main);
-  border-radius: 4px;
-  padding: 4px 8px;
-  font-family: var(--font-mono);
-  font-size: 0.85rem;
+.config-card .card-body {
+  display: flex;
+  gap: 12px;
+  align-items: center;
 }
 
-.priority-input {
-  width: 50px;
-  background: rgba(0, 0, 0, 0.25);
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.input-group label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.card-input {
+  height: 32px;
+  padding: 0 10px;
+  font-size: 0.85rem;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.2);
   border: 1px solid var(--border-light);
   color: var(--text-main);
-  border-radius: 4px;
-  padding: 4px 6px;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.card-input:focus {
+  border-color: var(--accent-cyan);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.journey-id-field {
+  width: 150px;
+}
+
+.name-input-field {
+  width: 240px;
+}
+
+.keyword-input-field {
+  width: 120px;
+}
+
+.priority-input-field {
+  width: 60px;
   text-align: center;
+}
+
+.timeout-input-field {
+  width: 80px;
+  text-align: center;
+}
+
+.exit-input-field {
+  width: 150px;
 }
 
 .workspace-actions {
@@ -864,9 +971,9 @@ onMounted(() => {
 
 .workspace-body {
   display: flex;
-  flex-grow: 1;
+  flex: 1;
   gap: 16px;
-  height: calc(100% - 86px);
+  min-height: 0;
   overflow: hidden;
 }
 

@@ -174,5 +174,25 @@ Verify that delivery status notifications (sent, delivered, read, failed) from t
 - The notification event is stored in `audit_webhook_stream` with type/direction `notification_status`.
 - The UI dashboard lists the delivery status updates in real-time.
 
+---
+
+## TC-013: Journey Builder Visual Header Two-Row Refactoring
+### Description
+Verify that the Journey Builder configuration header is divided into two rows: the top row for scope selection and global workspace actions, and the bottom row for detailed journey configuration cards.
+### Action
+1. Open the Journey Builder at `http://localhost:5173/builder`.
+2. Inspect the top config panel.
+### Expected Results
+- The config panel is divided into two rows with a clean glassmorphic divider.
+- The top row displays:
+  - "Tenant Scope" dropdown selector.
+  - "Journey Blueprint" dropdown selector.
+  - Global action buttons ("Load Demo", "Clear Canvas", "Save Blueprint").
+- The bottom row groups configuration fields into three card containers:
+  - **Identity**: Journey ID & Journey Name fields.
+  - **Ingress Trigger**: Trigger Keyword & Priority fields.
+  - **Lifecycle & Expiration**: Timeout (minutes) & Exit Keys fields.
+- The visual canvas area automatically expands and fits the remaining page height cleanly.
+
 
 
