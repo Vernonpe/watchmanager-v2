@@ -164,11 +164,66 @@
 
             <!-- Active Journey Title Overlay -->
             <div class="canvas-active-title-overlay glass-panel animate-slide-down">
-              <span class="active-title-label">Editing Blueprint</span>
-              <input v-model="journeyName" type="text" class="active-title-input-field" placeholder="Enter Journey Name..." />
+              <div class="active-title-header-row">
+                <span class="active-title-label">Editing Blueprint</span>
+                <!-- Edit Toggle Button -->
+                <button 
+                  v-if="!isEditingName" 
+                  class="edit-title-btn" 
+                  @click="isEditingName = true" 
+                  title="Edit Blueprint Details"
+                >
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                  </svg>
+                </button>
+                <!-- Save Button -->
+                <button 
+                  v-else 
+                  class="save-title-btn" 
+                  @click="saveJourneyInline" 
+                  title="Save Details"
+                >
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  <span>Save</span>
+                </button>
+              </div>
+
+              <!-- Inline Name & Tag Fields -->
+              <div class="title-fields-container">
+                <!-- Name Field -->
+                <div v-if="!isEditingName" class="active-title-name-display" @click="isEditingName = true">
+                  {{ journeyName || 'New Blueprint' }}
+                </div>
+                <input 
+                  v-else 
+                  v-model="journeyName" 
+                  type="text" 
+                  class="active-title-input-field" 
+                  placeholder="Enter Journey Name..." 
+                />
+
+                <!-- Memorable Tag Field -->
+                <div class="memorable-tag-row">
+                  <span class="tag-label">Tag:</span>
+                  <span v-if="!isEditingName" class="tag-display" :class="{ empty: !journeyTag }" @click="isEditingName = true">
+                    {{ journeyTag || 'Add memorable tag...' }}
+                  </span>
+                  <input 
+                    v-else 
+                    v-model="journeyTag" 
+                    type="text" 
+                    class="active-title-tag-input" 
+                    placeholder="e.g. customer support, fallback" 
+                  />
+                </div>
+              </div>
+
               <div class="active-title-id-row">
                 <span class="active-title-id-label">ID:</span>
-                <input v-model="journeyId" type="text" class="active-title-id-input" placeholder="journey_id" :disabled="!!selectedJourneyId" />
+                <span class="active-title-id-value"><code>{{ journeyId || 'unsaved' }}</code></span>
               </div>
             </div>
 
@@ -448,7 +503,8 @@
                 </div>
                 <div class="item-journey-col">
                   <label>Target Subflow</label>
-                  <select v-model="item.target_journey_id" class="glass-input select-input">
+                  <select v-model="item.target_journey_id" class="glass-input select-input" @change="onSubflowChange(item)">
+                    <option value="">-- Start New Blueprint --</option>
                     <option v-for="j in journeys" :key="j.journey_id" :value="j.journey_id">{{ j.name }}</option>
                   </select>
                 </div>
@@ -543,6 +599,13 @@ const priority = ref(1);
 const journeyId = ref('journey_watchmanager_v2');
 const sessionTimeout = ref(1440);
 const exitKeywordsStr = ref('exit, stop');
+const journeyTag = ref('');
+const isEditingName = ref(false);
+
+const saveJourneyInline = async () => {
+  await saveJourney();
+  isEditingName.value = false;
+};
 
 // Initial Vue Flow states
 const nodes = ref([]);
@@ -631,6 +694,7 @@ const loadSelectedJourney = () => {
   if (j) {
     journeyId.value = j.journey_id;
     journeyName.value = j.name;
+    journeyTag.value = j.tag || '';
     triggerKeyword.value = j.ingress_trigger_keyword || '';
     priority.value = j.priority || 1;
     sessionTimeout.value = j.session_timeout_minutes || 1440;
@@ -661,8 +725,14 @@ const loadSelectedJourney = () => {
 // Clear canvas and reset configuration IDs for new flow
 const createNewFreshJourney = () => {
   selectedJourneyId.value = '';
-  journeyId.value = 'journey_' + Math.random().toString(36).substring(7);
+  
+  const currentTenant = tenants.value.find(t => t.tenant_id === selectedTenantId.value);
+  const tenantSlug = currentTenant ? currentTenant.name.toLowerCase().replace(/[^a-z0-9]/g, '') : 'tenant';
+  const uniqueTimestamp = Date.now();
+  journeyId.value = `wm_${tenantSlug}_${uniqueTimestamp}`;
+  
   journeyName.value = 'New Conversational Journey';
+  journeyTag.value = '';
   triggerKeyword.value = '';
   priority.value = 1;
   sessionTimeout.value = 1440;
@@ -839,6 +909,7 @@ const saveJourney = async () => {
     version: 1,
     priority: priority.value,
     ingress_trigger_keyword: triggerKeyword.value,
+    tag: journeyTag.value,
     session_timeout_minutes: sessionTimeout.value,
     exit_keywords: exitKeywordsStr.value.split(',').map(s => s.trim()).filter(Boolean),
     menu_keywords: ['menu'],
@@ -913,6 +984,14 @@ const addMenuItem = () => {
 
 const removeMenuItem = (index) => {
   menuConfig.value.items.splice(index, 1);
+};
+
+const onSubflowChange = (item) => {
+  if (item.target_journey_id === '') {
+    createNewFreshJourney();
+    editorMode.value = 'canvas';
+    item.target_journey_id = journeyId.value;
+  }
 };
 
 const getJourneyName = (journeyId) => {
@@ -1907,39 +1986,159 @@ input:checked + .switch-slider:before {
   left: 20px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 12px 18px;
+  gap: 10px;
+  padding: 14px 20px;
   z-index: 10;
-  border-radius: 10px;
-  background: rgba(10, 15, 30, 0.75);
+  border-radius: 12px;
+  background: rgba(10, 15, 30, 0.85);
   border: 1px solid var(--border-light);
   box-shadow: var(--shadow-dark);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(12px);
   pointer-events: auto;
+  min-width: 280px;
+}
+
+.active-title-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 6px;
+  margin-bottom: 2px;
 }
 
 .canvas-active-title-overlay .active-title-label {
   font-size: 0.65rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   color: var(--accent-cyan);
 }
 
-.active-title-input-field {
+.edit-title-btn {
   background: transparent;
   border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.edit-title-btn:hover {
+  color: var(--accent-cyan);
+  background: rgba(0, 220, 200, 0.08);
+}
+
+.save-title-btn {
+  background: rgba(0, 220, 200, 0.15);
+  border: 1px solid var(--accent-cyan);
+  color: var(--accent-cyan);
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  transition: all 0.2s ease;
+}
+
+.save-title-btn:hover {
+  background: var(--accent-cyan);
+  color: #000;
+  box-shadow: var(--shadow-glow-cyan);
+}
+
+.title-fields-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.active-title-name-display {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-main);
+  cursor: pointer;
+  padding: 2px 0;
+  border-bottom: 1px solid transparent;
+}
+
+.active-title-name-display:hover {
+  border-bottom-color: rgba(255, 255, 255, 0.2);
+}
+
+.active-title-input-field {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--text-main);
   outline: none;
-  border-bottom: 1px solid transparent;
-  padding: 2px 0;
+  padding: 4px 8px;
   transition: all 0.3s ease;
-  width: 220px;
+  width: 100%;
 }
 
 .active-title-input-field:focus {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 10px rgba(0, 220, 200, 0.15);
+}
+
+.memorable-tag-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+}
+
+.tag-label {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.tag-display {
+  color: var(--accent-cyan);
+  background: rgba(0, 220, 200, 0.08);
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px dashed rgba(0, 220, 200, 0.3);
+  transition: all 0.2s ease;
+}
+
+.tag-display.empty {
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.tag-display:hover {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 8px rgba(0, 220, 200, 0.1);
+}
+
+.active-title-tag-input {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  color: var(--text-main);
+  outline: none;
+  padding: 4px 8px;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.active-title-tag-input:focus {
   border-color: var(--accent-cyan);
 }
 
@@ -1949,35 +2148,17 @@ input:checked + .switch-slider:before {
   gap: 4px;
   font-size: 0.7rem;
   color: var(--text-muted);
+  margin-top: 2px;
 }
 
 .active-title-id-label {
-  font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
-  color: var(--text-muted);
 }
 
-.active-title-id-input {
-  background: transparent;
-  border: none;
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
+.active-title-id-value code {
   color: var(--accent-purple);
-  outline: none;
-  border-bottom: 1px solid transparent;
-  padding: 1px 0;
-  transition: all 0.3s ease;
-  width: 140px;
-}
-
-.active-title-id-input:focus:not(:disabled) {
-  border-color: var(--accent-purple);
-}
-
-.active-title-id-input:disabled {
-  cursor: not-allowed;
-  opacity: 0.8;
+  font-family: var(--font-mono);
 }
 
 .animate-slide-down {

@@ -48,6 +48,7 @@ const builderJourneysSchema = new mongoose.Schema({
   is_active: { type: Boolean, default: true },
   priority: { type: Number, default: 1 }, // 10 for alarms, 1 for chats
   ingress_trigger_keyword: { type: String }, // e.g. "service" or "job"
+  tag: { type: String, default: "" }, // Memorable user tag
   session_timeout_minutes: { type: Number, default: 1440 }, // defaults to 24 hours
   exit_keywords: { type: [String], default: ['exit', 'stop'] },
   menu_keywords: { type: [String], default: ['menu'] },

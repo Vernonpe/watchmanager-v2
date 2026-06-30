@@ -36,7 +36,7 @@ router.get('/journeys/:journey_id', async (req, res) => {
 });
 
 router.post('/journeys', async (req, res) => {
-  const { journey_id, name, version, priority, ingress_trigger_keyword, nodes, edges, is_active } = req.body;
+  const { journey_id, name, version, priority, ingress_trigger_keyword, tag, session_timeout_minutes, exit_keywords, nodes, edges, is_active } = req.body;
   try {
     const journey = await mongoose.model('builder_journeys').findOneAndUpdate(
       { tenant_id: req.tenant_id, journey_id },
@@ -45,6 +45,9 @@ router.post('/journeys', async (req, res) => {
         version: version || 1, 
         priority: priority || 1,
         ingress_trigger_keyword, 
+        tag,
+        session_timeout_minutes,
+        exit_keywords,
         nodes, 
         edges, 
         is_active: is_active !== undefined ? is_active : true,
