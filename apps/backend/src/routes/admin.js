@@ -71,6 +71,7 @@ router.post('/journeys', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
 
 
 router.delete('/journeys/:journey_id', async (req, res) => {
