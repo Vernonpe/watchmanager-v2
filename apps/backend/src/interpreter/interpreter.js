@@ -29,8 +29,14 @@ async function runInterpreterLoop(session, webhookPayload, credentials) {
   }
 
   // 3. Global Control Keyword Overrides Interception
+  const exitKeywords = (journey.exit_keywords || ['exit', 'stop']).map(k => k.toLowerCase().trim());
+  const menuKeywords = (journey.menu_keywords || ['menu']).map(k => k.toLowerCase().trim());
+  const backKeywords = (journey.back_keywords || ['back']).map(k => k.toLowerCase().trim());
+
+  const normalizedInput = userMessageText.toLowerCase().trim();
+
   // exit keyword
-  if (userMessageText.toLowerCase() === 'exit') {
+  if (exitKeywords.includes(normalizedInput)) {
     // Reset session back to start of the current journey
     session.current_node_id = journey.nodes[0].id;
     session.collected_data.clear();
@@ -47,7 +53,7 @@ async function runInterpreterLoop(session, webhookPayload, credentials) {
   }
 
   // menu keyword
-  if (userMessageText.toLowerCase() === 'menu') {
+  if (menuKeywords.includes(normalizedInput)) {
     // Redirect user to the root main menu node
     const mainMenuNode = journey.nodes.find(n => n.id === 'node_main_menu' || n.id === 'node_fault_menu');
     if (mainMenuNode) {
@@ -62,7 +68,7 @@ async function runInterpreterLoop(session, webhookPayload, credentials) {
   }
 
   // back keyword
-  if (userMessageText.toLowerCase() === 'back' && session.state_history.length > 0) {
+  if (backKeywords.includes(normalizedInput) && session.state_history.length > 0) {
     const rolledBackNodeId = session.state_history.pop();
     session.current_node_id = rolledBackNodeId;
     
@@ -300,13 +306,15 @@ function interpolateTemplate(template, session) {
 }
 
 /**
- * Sends a raw text message to the Channel360 gateway
+ * Sends a raw text or template message to the Channel360 gateway
  */
 async function sendWhatsAppMessage(credentials, mobile, payload) {
   const isTest = credentials.is_test_mode;
-  // Redirect to local mock server if test mode is enabled
-  const baseUrl = isTest ? process.env.MOCK_SERVER_URL : `https://www.channel360.co.za/v1.1/org/${credentials.org_id}/whatsapp/appuser`;
-  const url = isTest ? `${baseUrl}/whatsapp_reply` : `${baseUrl}/${mobile}/reply`;
+  const isTemplate = payload && payload.type === 'template';
+  
+  const endpoint = isTemplate ? 'template' : 'reply';
+  const baseUrl = isTest ? (process.env.MOCK_SERVER_URL || 'http://localhost:3002') : `https://www.channel360.co.za/v1.1/org/${credentials.org_id}/whatsapp/appuser`;
+  const url = isTest ? `${baseUrl}/whatsapp_reply` : `${baseUrl}/${mobile}/${endpoint}`;
 
   const headers = {
     'Content-Type': 'application/json',
@@ -325,32 +333,49 @@ async function sendWhatsAppMessage(credentials, mobile, payload) {
 }
 
 /**
- * Sends the dynamic WhatsApp interactive prompt depending on the Node Type
+ * Sends the dynamic WhatsApp interactive prompt depending on the Node Type, or falls back to template if support window expired.
  */
 async function sendNodeWhatsAppPrompt(credentials, mobile, node, session) {
   let payload = {};
 
-  if (node.type === 'prompt_text') {
-    const msg = interpolateTemplate(node.config.message, session);
-    payload = { text: msg };
-  } 
-  
-  else if (node.type === 'prompt_buttons') {
-    const text = interpolateTemplate(node.config.message, session);
-    const buttons = node.config.buttons.map(btn => ({
-      id: btn.id,
-      title: btn.title
-    }));
-    payload = { text, buttons };
-  } 
-  
-  else if (node.type === 'prompt_list') {
+  const lastMsgTime = session.last_user_message_at ? new Date(session.last_user_message_at).getTime() : 0;
+  const timeElapsed = Date.now() - lastMsgTime;
+  const isExpiredWindow = timeElapsed > 24 * 60 * 60 * 1000;
+
+  if (isExpiredWindow && node.config && node.config.fallback_template_name) {
+    console.log(`[Interpreter 24h Guard] Support window expired (${Math.round(timeElapsed/3600000)}h). Sending template fallback.`);
+    const params = (node.config.fallback_template_params || []).map(p => {
+      return interpolateTemplate(p, session);
+    });
+    
     payload = {
-      button_text: node.config.button_text,
-      title: node.config.title,
-      description: interpolateTemplate(node.config.description, session),
-      sections: node.config.sections
+      type: 'template',
+      template_name: node.config.fallback_template_name,
+      parameters: params
     };
+  } else {
+    if (node.type === 'prompt_text') {
+      const msg = interpolateTemplate(node.config.message, session);
+      payload = { text: msg };
+    } 
+    
+    else if (node.type === 'prompt_buttons') {
+      const text = interpolateTemplate(node.config.message, session);
+      const buttons = node.config.buttons.map(btn => ({
+        id: btn.id,
+        title: btn.title
+      }));
+      payload = { text, buttons };
+    } 
+    
+    else if (node.type === 'prompt_list') {
+      payload = {
+        button_text: node.config.button_text,
+        title: node.config.title,
+        description: interpolateTemplate(node.config.description, session),
+        sections: node.config.sections
+      };
+    }
   }
 
   // Record audit trail of outbound message

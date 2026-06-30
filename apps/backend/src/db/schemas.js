@@ -48,6 +48,10 @@ const builderJourneysSchema = new mongoose.Schema({
   is_active: { type: Boolean, default: true },
   priority: { type: Number, default: 1 }, // 10 for alarms, 1 for chats
   ingress_trigger_keyword: { type: String }, // e.g. "service" or "job"
+  session_timeout_minutes: { type: Number, default: 1440 }, // defaults to 24 hours
+  exit_keywords: { type: [String], default: ['exit', 'stop'] },
+  menu_keywords: { type: [String], default: ['menu'] },
+  back_keywords: { type: [String], default: ['back'] },
   nodes: { type: Array, required: true }, // Visual VueFlow nodes array
   edges: { type: Array, required: true }, // Visual VueFlow edges array
   created_at: { type: Date, default: Date.now },
@@ -87,6 +91,7 @@ const runtimeWhatsappSessionsSchema = new mongoose.Schema({
   processed_message_ids: [{ type: String }],
   whatsapp_number: { type: String },
   whatsapp_name: { type: String },
+  last_user_message_at: { type: Date, default: Date.now },
   expires_at: { type: Date, required: true }
 });
 runtimeWhatsappSessionsSchema.index({ tenant_id: 1, mobile: 1 }, { unique: true });
@@ -110,7 +115,7 @@ runtimeAlarmTriggersSchema.index({ tenant_id: 1, mobile: 1 });
 
 const auditWebhookStreamSchema = new mongoose.Schema({
   tenant_id: { type: String, ref: 'sys_tenants' },
-  direction: { type: String, enum: ['inbound', 'outbound_receipt'], required: true },
+  direction: { type: String, enum: ['inbound', 'outbound_receipt', 'notification_status'], required: true },
   payload: { type: mongoose.Schema.Types.Mixed, required: true },
   created_at: { type: Date, default: Date.now, expires: 2592000 } // 30 days
 });

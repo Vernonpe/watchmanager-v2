@@ -28,7 +28,9 @@ const defaultChecklistJourney = {
         await_response: true,
         input_variable: "fullname",
         validation_regex: "^.{2,100}$",
-        validation_error_message: "Invalid Name. Name must be between 2 and 100 characters. Please try again:"
+        validation_error_message: "Invalid Name. Name must be between 2 and 100 characters. Please try again:",
+        fallback_template_name: "service_reinitiate",
+        fallback_template_params: ["collected_data.fullname"]
       }
     },
     {
@@ -115,7 +117,9 @@ const alarmJourney = {
         buttons: [
           { id: "send_help", title: "Send Help" },
           { id: "false_alarm", title: "Safe / False Alarm" }
-        ]
+        ],
+        fallback_template_name: "alarm_alert_template",
+        fallback_template_params: ["{{collected_data.location}}"]
       }
     },
     {
@@ -405,6 +409,137 @@ async function runTests() {
     { tenant_id: "tenant_watchmanager_prod_01" },
     { status: "active" }
   );
+
+  console.log('\n[Test] 9. Verifying customizable session timeouts...');
+  // Update journey timeout setting
+  await mongoose.model('builder_journeys').updateOne(
+    { journey_id: "journey_watchmanager_v2" },
+    { session_timeout_minutes: 45 }
+  );
+  // Delete existing session to force a fresh one
+  await mongoose.model('runtime_whatsapp_sessions').deleteMany({ mobile: clientMobile });
+  
+  await axios.post(`${BASE_URL}/platform_watchmanager_test_uuid/whatsapp/messages`, {
+    messageId: "msg_inbound_timeout_test",
+    mobile: clientMobile,
+    message: {
+      id: "msg_inbound_timeout_test",
+      from: clientMobile,
+      text: "service"
+    }
+  }, { headers });
+
+  session = await waitForSessionState(clientMobile, s => s.current_node_id === 'node_start');
+  const durationMinutes = Math.round((new Date(session.expires_at).getTime() - Date.now()) / 60000);
+  if (durationMinutes < 40 || durationMinutes > 50) {
+    throw new Error(`Test Step 9 Failed: Session timeout calculation error. Expected ~45 mins, got: ${durationMinutes} mins`);
+  }
+  console.log('  [PASS] Session expires_at set dynamically to:', session.expires_at, `(~${durationMinutes} minutes)`);
+
+  console.log('\n[Test] 10. Verifying customizable exit keywords...');
+  // Update journey keywords
+  await mongoose.model('builder_journeys').updateOne(
+    { journey_id: "journey_watchmanager_v2" },
+    { exit_keywords: ['cancel_session', 'abort_flow'] }
+  );
+  // Send some input to transition node
+  await axios.post(`${BASE_URL}/webhook/whatsapp`, {
+    messageId: "msg_inbound_name",
+    mobile: clientMobile,
+    message: {
+      id: "msg_inbound_name",
+      from: clientMobile,
+      text: "Alice"
+    }
+  }, { headers });
+  session = await waitForSessionState(clientMobile, s => s.current_node_id === 'node_address');
+  
+  // Try sending the default 'exit' command (should now be ignored as a command override)
+  console.log("  Sending default 'exit' (should be processed as normal address input)...");
+  await axios.post(`${BASE_URL}/webhook/whatsapp`, {
+    messageId: "msg_inbound_exit_ignored",
+    mobile: clientMobile,
+    message: {
+      id: "msg_inbound_exit_ignored",
+      from: clientMobile,
+      text: "exit"
+    }
+  }, { headers });
+  
+  await new Promise(resolve => setTimeout(resolve, 300));
+  session = await mongoose.model('runtime_whatsapp_sessions').findOne({ mobile: clientMobile });
+  if (session.current_node_id === 'node_start') {
+    throw new Error(`Test Step 10 Failed: Default 'exit' incorrectly triggered reset when it was overridden. Current node: ${session.current_node_id}`);
+  }
+  
+  // Send the custom exit keyword 'cancel_session' (should trigger reset)
+  console.log("  Sending custom exit keyword 'cancel_session' (should trigger session reset)...");
+  await axios.post(`${BASE_URL}/webhook/whatsapp`, {
+    messageId: "msg_inbound_exit_custom",
+    mobile: clientMobile,
+    message: {
+      id: "msg_inbound_exit_custom",
+      from: clientMobile,
+      text: "cancel_session"
+    }
+  }, { headers });
+  
+  session = await waitForSessionState(clientMobile, s => s.current_node_id === 'node_start' && s.collected_data.size === 0);
+  console.log('  [PASS] Session successfully reset to start using custom keyword "cancel_session".');
+
+  console.log('\n[Test] 11. Verifying 24-Hour support window template fallbacks...');
+  // Force last message time to 25 hours ago
+  session.last_user_message_at = new Date(Date.now() - 25 * 60 * 60 * 1000);
+  await session.save();
+
+  // Clear mock server logs to isolate output
+  await axios.post(`${MOCK_URL}/clear_logs`).catch(() => {});
+
+  // Trigger outbound alarm preemption override
+  console.log("  Simulating outbound alarm preemption override outside support window...");
+  await axios.post(`${BASE_URL}/webhook/alarm/trigger`, {
+    tenant_id: "tenant_watchmanager_prod_01",
+    mobile: clientMobile,
+    alarm_id: "alarm_incident_999",
+    location: "Warehouse C - Main Gates",
+    event_uuid: "event_uuid_202020",
+    passwords: ["1234"]
+  });
+
+  // Check mock server logs for the template payload
+  await new Promise(resolve => setTimeout(resolve, 800));
+  const logsResp2 = await axios.get(`${MOCK_URL}/test_logs`);
+  const logs2 = logsResp2.data;
+  const templateMsg = logs2.find(l => l.type === 'whatsapp' && l.payload && l.payload.type === 'template');
+  
+  if (!templateMsg) {
+    throw new Error('Test Step 11 Failed: No template fallback message found in mock logs.');
+  }
+  if (templateMsg.payload.template_name !== 'alarm_alert_template' || templateMsg.payload.parameters[0] !== 'Warehouse C - Main Gates') {
+    throw new Error(`Test Step 11 Failed: Template content mismatch. Got: ${JSON.stringify(templateMsg.payload)}`);
+  }
+  console.log('  [PASS] Successfully intercepted freeform message and sent template fallback instead:');
+  console.log('  Template Name:', templateMsg.payload.template_name);
+  console.log('  Parameters:', JSON.stringify(templateMsg.payload.parameters));
+
+  console.log('\n[Test] 12. Verifying delivery status notification logging...');
+  await axios.post(`${BASE_URL}/platform_watchmanager_test_uuid/whatsapp/notifications`, {
+    orgId: "org_watchmanager_test",
+    messageId: "msg_inbound_reprompt",
+    status: "read",
+    mobile: clientMobile
+  }, { headers });
+
+  await new Promise(resolve => setTimeout(resolve, 300));
+
+  const notifications = await mongoose.model('audit_webhook_stream').find({
+    tenant_id: "tenant_watchmanager_prod_01",
+    direction: "notification_status"
+  });
+  if (notifications.length === 0) {
+    throw new Error('Test Step 12 Failed: Notification receipt not logged in audit_webhook_stream');
+  }
+  console.log('  [PASS] Delivery status update logged in audit stream:', JSON.stringify(notifications[0].payload));
 
   console.log('\n🎉 ALL STATE MACHINE & PREEMPTION FLOW INTEGRATION TESTS PASSED VERIFICATION 🎉\n');
 }

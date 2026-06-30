@@ -116,4 +116,63 @@ Verify that the Audit Logs menu compiles all incoming/outgoing messages, API cal
 - Search box filters results containing the keyword `John Doe` (either in summary or details payload).
 - Inspector card displays the selected log's formatted JSON details structure (e.g. headers, payload variables, API response body).
 
+---
+
+## TC-009: 24-Hour WhatsApp Session Support Window & Fallback Templates
+### Description
+Verify that when the last user interaction exceeds 24 hours, the system automatically redirects outgoing messages to use the pre-approved WhatsApp Template.
+### Action
+1. Go to the Journey Builder page.
+2. Select a text prompt node (e.g. `node_start`).
+3. In the properties panel, toggle "WhatsApp 24-Hour Window Fallback Template", input Template Name `service_reinitiate`, and Map parameter: `collected_data.fullname`.
+4. Click **Save Blueprint**.
+5. Manually force the session `last_user_message_at` field in MongoDB to a timestamp > 24 hours ago.
+6. Trigger an outbound notification or step flow transition to that node.
+### Expected Results
+- The system checks `last_user_message_at` and detects support window expiration.
+- The outbound payload sent to the Channel360 API matches the WhatsApp Template structure (containing `template_name` and parameters) rather than freeform text.
+
+---
+
+## TC-010: Customizable Session Inactivity Expiration Timeouts
+### Description
+Verify that the session timeout duration defaults to 24 hours but is overridden by the journey's custom `session_timeout_minutes` setting.
+### Action
+1. Go to the Journey Builder page.
+2. In the journey settings header, set **Inactivity Timeout (minutes)** to `30` (30 minutes).
+3. Save the journey blueprint.
+4. Dispatch an inbound keyword message to initiate the journey session.
+5. Query the newly created session record in `runtime_whatsapp_sessions`.
+### Expected Results
+- The session `expires_at` is set to exactly 30 minutes in the future from the creation time.
+
+---
+
+## TC-011: Custom Command Keywords Override (Exit, Menu, Back)
+### Description
+Verify that journeys can configure customized keyword arrays to handle state resets and back navigations.
+### Action
+1. Go to the Journey Builder page.
+2. In the journey settings header, set custom **Exit Keywords** to `cancel_session`.
+3. Save the journey.
+4. Initiate a session and progress past the first node to collect data.
+5. Send the message text `cancel_session` over WhatsApp.
+### Expected Results
+- The system intercepts the message as an exit override command.
+- The session state resets to the starting node, and collected variables are cleared.
+- Standard text `exit` is processed as a regular message input, not an override.
+
+---
+
+## TC-012: Inbound Delivery Status Notifications Logging
+### Description
+Verify that delivery status notifications (sent, delivered, read, failed) from the WhatsApp gateway are parsed and logged in the audit stream.
+### Action
+1. Send a mock HTTP payload representing a delivery status update to `/api/:platformUuid/whatsapp/notifications`.
+2. Open the Audit Logs portal at `http://localhost:5173/logs`.
+### Expected Results
+- The notification event is stored in `audit_webhook_stream` with type/direction `notification_status`.
+- The UI dashboard lists the delivery status updates in real-time.
+
+
 

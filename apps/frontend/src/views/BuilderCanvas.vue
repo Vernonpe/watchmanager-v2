@@ -29,6 +29,14 @@
           <span>Priority:</span>
           <input v-model.number="priority" type="number" class="priority-input" min="1" max="10" />
         </div>
+        <div class="meta-item">
+          <span>Timeout (m):</span>
+          <input v-model.number="sessionTimeout" type="number" class="priority-input" min="1" style="width: 60px;" />
+        </div>
+        <div class="meta-item">
+          <span>Exit Keys:</span>
+          <input v-model="exitKeywordsStr" type="text" class="trigger-keyword-input" placeholder="exit, stop" style="width: 100px;" />
+        </div>
       </div>
       <div class="workspace-actions">
         <button class="glass-btn glass-btn-secondary" @click="addDemoFlow">Load Demo</button>
@@ -306,6 +314,26 @@
               </div>
             </div>
 
+            <!-- Fallback templates configuration for prompt nodes -->
+            <div v-if="selectedNode.type && selectedNode.type.startsWith('prompt_')" class="fallback-template-section">
+              <hr class="divider" />
+              <h4 class="section-sub-title">24h Support Window Template Fallback</h4>
+              <div class="form-group">
+                <label>Meta Template Name</label>
+                <input v-model="selectedNode.config.fallback_template_name" type="text" class="glass-input" placeholder="e.g. service_reinitiate" />
+              </div>
+              <div class="form-group" style="margin-top: 8px;">
+                <label>Template Parameters (comma separated)</label>
+                <input 
+                  :value="(selectedNode.config.fallback_template_params || []).join(', ')" 
+                  @input="e => selectedNode.config.fallback_template_params = e.target.value.split(',').map(s => s.trim()).filter(Boolean)"
+                  type="text" 
+                  class="glass-input" 
+                  placeholder="e.g. collected_data.fullname" 
+                />
+              </div>
+            </div>
+
             <div class="drawer-actions">
               <button class="glass-btn glass-btn-danger" @click="deleteSelectedNode">Delete Node</button>
             </div>
@@ -338,6 +366,8 @@ const journeyName = ref('WatchManager Unified Journey');
 const triggerKeyword = ref('service');
 const priority = ref(1);
 const journeyId = ref('journey_watchmanager_v2');
+const sessionTimeout = ref(1440);
+const exitKeywordsStr = ref('exit, stop');
 
 // Initial Vue Flow states
 const nodes = ref([]);
@@ -428,6 +458,8 @@ const loadSelectedJourney = () => {
     journeyName.value = j.name;
     triggerKeyword.value = j.ingress_trigger_keyword || '';
     priority.value = j.priority || 1;
+    sessionTimeout.value = j.session_timeout_minutes || 1440;
+    exitKeywordsStr.value = (j.exit_keywords || ['exit', 'stop']).join(', ');
     
     // Map database nodes into Vue Flow nodes
     nodes.value = (j.nodes || []).map(n => ({
@@ -458,6 +490,8 @@ const createNewFreshJourney = () => {
   journeyName.value = 'New Conversational Journey';
   triggerKeyword.value = '';
   priority.value = 1;
+  sessionTimeout.value = 1440;
+  exitKeywordsStr.value = 'exit, stop';
   nodes.value = [];
   edges.value = [];
   selectedNode.value = null;
@@ -630,6 +664,10 @@ const saveJourney = async () => {
     version: 1,
     priority: priority.value,
     ingress_trigger_keyword: triggerKeyword.value,
+    session_timeout_minutes: sessionTimeout.value,
+    exit_keywords: exitKeywordsStr.value.split(',').map(s => s.trim()).filter(Boolean),
+    menu_keywords: ['menu'],
+    back_keywords: ['back'],
     nodes: nodes.value.map(n => ({
       id: n.id,
       type: n.type,

@@ -22,7 +22,6 @@ async function executeInboundMessage(credentials, payload, messageId, mobile) {
 
     // 2. Resolve / Create Session Record
     let session = await mongoose.model('runtime_whatsapp_sessions').findOne({ tenant_id, mobile });
-    const expiresAt = new Date(Date.now() + 23 * 60 * 60 * 1000);
 
     const userMessageText = (payload.message && payload.message.text || '').trim().toLowerCase();
 
@@ -50,6 +49,9 @@ async function executeInboundMessage(credentials, payload, messageId, mobile) {
       }
       console.log(`[Webhook Session] Resolved journey: ${defaultJourney.journey_id}`);
 
+      const minutes = defaultJourney.session_timeout_minutes || 1440;
+      const expiresAt = new Date(Date.now() + minutes * 60 * 1000);
+
       session = await mongoose.model('runtime_whatsapp_sessions').create({
         tenant_id,
         mobile,
@@ -57,6 +59,7 @@ async function executeInboundMessage(credentials, payload, messageId, mobile) {
         current_node_id: defaultJourney.nodes[0].id,
         priority: defaultJourney.priority || 1,
         processed_message_ids: [],
+        last_user_message_at: new Date(),
         expires_at: expiresAt
       });
       console.log(`[Webhook Session] Created session, current_node_id: ${session.current_node_id}`);
@@ -84,6 +87,16 @@ async function executeInboundMessage(credentials, payload, messageId, mobile) {
     if (session.processed_message_ids.length > 20) {
       session.processed_message_ids.shift();
     }
+
+    // Update session expiration & activity timestamps
+    session.last_user_message_at = new Date();
+    const activeJourney = await mongoose.model('builder_journeys').findOne({
+      tenant_id,
+      journey_id: session.active_journey_id,
+      is_active: true
+    });
+    const minutes = activeJourney ? (activeJourney.session_timeout_minutes || 1440) : 1440;
+    session.expires_at = new Date(Date.now() + minutes * 60 * 1000);
 
     // 4. Delegate to interpreter loop
     await runInterpreterLoop(session, payload, credentials);
@@ -210,7 +223,7 @@ router.post('/webhook/whatsapp/notifications', async (req, res) => {
     // Audit delivery receipts
     await mongoose.model('audit_webhook_stream').create({
       tenant_id: credentials.tenant_id,
-      direction: 'outbound_receipt',
+      direction: 'notification_status',
       payload
     });
   } catch (err) {
@@ -256,7 +269,7 @@ router.post('/:platformUuid/whatsapp/notifications', async (req, res) => {
     // Audit delivery receipts
     await mongoose.model('audit_webhook_stream').create({
       tenant_id: tenant.tenant_id,
-      direction: 'outbound_receipt',
+      direction: 'notification_status',
       payload
     });
   } catch (err) {
@@ -300,6 +313,18 @@ router.post('/webhook/alarm/trigger', async (req, res) => {
       location: location || 'Unknown Location',
       event_uuid: event_uuid || 'N/A'
     });
+
+    if (preempted) {
+      const credentials = await mongoose.model('sys_channel360_credentials').findOne({ tenant_id });
+      const session = await mongoose.model('runtime_whatsapp_sessions').findOne({ tenant_id, mobile });
+      const alarmJourney = await mongoose.model('builder_journeys').findOne({ tenant_id, journey_id: 'journey_alarm_notifications_v1' });
+      if (credentials && session && alarmJourney) {
+        const startNode = alarmJourney.nodes.find(n => n.id === 'node_alarm_buttons');
+        if (startNode) {
+          await sendNodeWhatsAppPrompt(credentials, mobile, startNode, session);
+        }
+      }
+    }
 
     res.status(200).json({ 
       success: true, 
