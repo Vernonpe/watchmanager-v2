@@ -284,3 +284,33 @@ Verify that developers can toggle the global API logging state, send raw request
 
 
 
+
+---
+
+## TC-019: Variable Picker Availability for Condition Split Nodes
+### Description
+Verify that variables collected by prompt nodes earlier in a journey are successfully propagated and made available as clickable insertion tokens (the `.variable-picker` interface) inside subsequent condition evaluation nodes (e.g. Condition Split).
+### Action
+1. Open the Journey Builder and drag a **Prompt Text** node onto the canvas.
+2. Configure the Prompt Text node to save the input as `user_name`.
+3. Connect the Prompt Text node to a **Condition Split** node.
+4. Click the Condition Split node to configure it.
+### Expected Results
+- In the configuration drawer for Condition Split, under "Variable Path" and "Compare Value", an "Insert Token:" section appears.
+- The `user_name` variable is displayed as a clickable pill button.
+- Clicking the pill automatically inserts `{{user_name}}` into the focused input field.
+
+---
+
+## TC-020: UI Layout Preservation for Prompt Buttons and Prompt Lists
+### Description
+Verify that the advanced generic CSS classes for nested component configurations (like `button-group-card`, `buttons-builder-list`, `row-align-checkbox`) render correctly in the Builder Configuration drawer without breaking or overflowing.
+### Action
+1. Open the Journey Builder and drag a **Prompt Buttons** node onto the canvas.
+2. Select the node to open the right-side configuration drawer.
+3. Click "+ Add Button".
+4. Add a **Prompt List** node to the canvas and select it to view its configuration.
+### Expected Results
+- The Prompt Buttons drawer correctly wraps each button configuration inside a styled `button-group-card` with an outline and a delete button in the top right.
+- The single-output toggle switch renders correctly on a single line with `row-align-checkbox` styling.
+- The Prompt List row configurations use the same consistent card layout without any visual distortion or raw HTML text spilling.
