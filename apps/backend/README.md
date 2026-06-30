@@ -29,15 +29,16 @@ apps/backend/
 
 ## 💾 Database Collections
 
-The MongoDB database contains the following collection schemas:
+The MongoDB database (`WatchManagerV2`) contains the following collection schemas:
 
-1. **`sys_tenants`**: Registered customer account profiles and Platform UUID references.
-2. **`sys_channel360_credentials`**: C360 Org ID, API bearer credentials, and control room endpoints.
-3. **`builder_journeys`**: Visual blueprints compiled using nodes (Text, Buttons, Inputs) and transition edges.
-4. **`runtime_whatsapp_sessions`**: Session state tracking active node contexts, circular duplicate filters, and collected variables.
-5. **`audit_webhook_stream`**: Inbound WhatsApp callbacks and receipt streams.
-6. **`audit_api_outbound_logs`**: Logs of Axios API requests made to C360 and external control rooms.
-7. **`audit_system_exceptions`**: System logs of runtime exceptions and call-stack errors.
+1. **`sys_tenants`**: Registered customer account profiles and Platform UUID references (status can be `active`, `suspended`, or `trial`).
+2. **`sys_channel360_credentials`**: C360 Org ID, API bearer credentials, control room endpoints, and `allow_template_messages` permission configuration.
+3. **`builder_journeys`**: Visual blueprints compiled using nodes (Text, Buttons, Inputs, Conditions), `tag` descriptions, and transition edges.
+4. **`builder_menus`**: Customizable Main Menu routing configuration (headers, intro text, and subflow mappings).
+5. **`runtime_whatsapp_sessions`**: Session state tracking active node contexts, preemption overrides status, `is_at_main_menu` flags, circular duplicate filters, and collected variables.
+6. **`audit_webhook_stream`**: Inbound WhatsApp callbacks and receipt streams.
+7. **`audit_api_outbound_logs`**: Logs of Axios API requests made to C360 and external control rooms.
+8. **`audit_system_exceptions`**: System logs of runtime exceptions and call-stack errors.
 
 ---
 
@@ -48,6 +49,8 @@ The MongoDB database contains the following collection schemas:
 - `POST /tenants`: Creates or updates a tenant profile.
 - `GET /credentials`: Fetches C360 integration keys for the header `x-tenant-id`.
 - `POST /credentials`: Updates C360 keys for the header `x-tenant-id`.
+- `GET /menu`: Fetches the Main Menu routing configuration for the header `x-tenant-id`.
+- `POST /menu`: Saves or updates the Main Menu routing configuration for the header `x-tenant-id`.
 - `GET /journeys`: Lists journeys for the header `x-tenant-id`.
 - `POST /journeys`: Saves or updates a journey blueprint.
 - `GET /sessions`: Lists active whatsapp subscriber sessions.

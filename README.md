@@ -35,7 +35,7 @@ To run the full stack locally for development and testing, you will need **Node.
 ### 1. Database Setup
 Ensure MongoDB is running locally at:
 ```text
-mongodb://localhost:27017/WatchManager
+mongodb://localhost:27017/WatchManagerV2
 ```
 
 ### 2. Run the Express Backend Server
@@ -116,13 +116,12 @@ ssh user@your-aws-ec2-ip
 Navigate to the directory where your Docker services are hosted (e.g. `/home/user/apps`).
 
 ### Step 2: Configure Domain & DNS
-- Add an **A Record** (e.g. `watchmanager.yourdomain.com`) in your domain registrar (GoDaddy, Route53, Cloudflare).
-- Point the record to the **Public IP address** of your AWS EC2 server.
+- Add an **A Record** pointing `watchmanager.novare.co.za` in your registrar to your AWS EC2 instance public IP.
 
 ### Step 3: Clone the Repository
-Clone the codebase using a Personal Access Token (PAT):
+Clone the codebase using your credentials:
 ```bash
-git clone https://<github-username>:<YOUR_TOKEN>@github.com/<username>/watchmanager-v2.git
+git clone https://github.com/vernonpe/watchmanager-v2.git
 cd watchmanager-v2
 ```
 
@@ -134,11 +133,12 @@ nano .env.prod
 *Add the following configurations:*
 ```ini
 COMPOSE_PROJECT_NAME=watchmanager
-HOST_URL=watchmanager.yourdomain.com
+HOST_URL=watchmanager.novare.co.za
 HOST_PORT=3001
 
 NODE_ENV=production
-MONGO_URI=mongodb://mongodb_container:27017/WatchManager
+# AWS Live MongoDB Server connection string
+MONGO_URI=mongodb://admin:wC8%40Rz3%24L5%23sP9qT@13.245.26.99:27017/WatchManagerV2
 ```
 
 ### Step 5: Start the Container
