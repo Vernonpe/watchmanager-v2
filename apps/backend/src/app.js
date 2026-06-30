@@ -52,8 +52,8 @@ mongoose.connect(MONGO_URI)
     // Seed initial admin user if collection is empty
     try {
       const User = mongoose.model('sys_users');
-      const count = await User.countDocuments({});
-      if (count === 0) {
+      const adminExists = await User.findOne({ username: 'admin' });
+      if (!adminExists) {
         const password_hash = await bcrypt.hash('admin_novare_123', 10);
         await User.create({
           username: 'admin',
