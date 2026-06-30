@@ -1,12 +1,34 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
 const isCollapsed = ref(false);
+const route = useRoute();
+const router = useRouter();
+
+// Show navigation only if route name is not 'Login'
+const showNav = computed(() => route.name !== 'Login');
+
+// Get current username for footer display
+const currentUsername = computed(() => {
+  const saved = localStorage.getItem('wm_user');
+  if (saved) {
+    const parsed = JSON.parse(saved);
+    return parsed.username;
+  }
+  return 'tenant_watchmanager_prod_01';
+});
+
+const handleLogout = () => {
+  localStorage.removeItem('wm_token');
+  localStorage.removeItem('wm_user');
+  router.push('/login');
+};
 </script>
 
 <template>
   <div class="app-container">
-    <aside class="sidebar glass-panel animate-width" :class="{ collapsed: isCollapsed }">
+    <aside v-if="showNav" class="sidebar glass-panel animate-width" :class="{ collapsed: isCollapsed }">
       <!-- Collapse Toggle Button -->
       <button class="collapse-toggle-btn" @click="isCollapsed = !isCollapsed" :title="isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'">
         <svg v-if="isCollapsed" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -70,17 +92,38 @@ const isCollapsed = ref(false);
           </svg>
           <span v-if="!isCollapsed" class="nav-label">Operations Console</span>
         </router-link>
+
+        <!-- User Management Link -->
+        <router-link to="/users" class="nav-item">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+          <span v-if="!isCollapsed" class="nav-label">User Accounts</span>
+        </router-link>
       </nav>
 
       <div class="sidebar-footer">
-        <div class="tenant-badge" :title="isCollapsed ? 'tenant_watchmanager_prod_01' : ''">
+        <div class="tenant-badge" :title="isCollapsed ? currentUsername : ''">
           <div class="indicator active"></div>
-          <span v-if="!isCollapsed">tenant_watchmanager_prod_01</span>
+          <span v-if="!isCollapsed">{{ currentUsername }}</span>
         </div>
+        
+        <!-- Logout Action Button -->
+        <button class="logout-btn" @click="handleLogout" :title="isCollapsed ? 'Logout' : ''">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+          <span v-if="!isCollapsed">Logout</span>
+        </button>
       </div>
     </aside>
 
-    <main class="main-content">
+    <main class="main-content" :class="{ 'full-width': !showNav }">
       <router-view v-slot="{ Component }">
         <transition name="fade-slide" mode="out-in">
           <component :is="Component" />
@@ -205,6 +248,9 @@ const isCollapsed = ref(false);
   margin-top: auto;
   border-top: 1px solid var(--border-light);
   padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .tenant-badge {
@@ -234,11 +280,43 @@ const isCollapsed = ref(false);
   box-shadow: 0 0 8px var(--accent-green);
 }
 
+.logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  color: #ff4d4f;
+  background: rgba(220, 53, 69, 0.1);
+  border: 1px solid rgba(220, 53, 69, 0.2);
+  border-radius: 8px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.3s ease;
+}
+
+.logout-btn:hover {
+  background: rgba(220, 53, 69, 0.2);
+  border-color: rgba(220, 53, 69, 0.4);
+}
+
+.sidebar.collapsed .logout-btn {
+  justify-content: center;
+  padding: 10px;
+  border-radius: 10px;
+}
+
 .main-content {
   flex-grow: 1;
   padding: 16px 16px 16px 0;
   height: 100vh;
   overflow: hidden;
+}
+
+.main-content.full-width {
+  padding: 0;
 }
 
 /* Transitions */

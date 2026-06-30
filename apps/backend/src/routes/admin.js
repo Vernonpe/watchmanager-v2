@@ -422,4 +422,76 @@ router.get('/logs', async (req, res) => {
   }
 });
 
+/**
+ * User Account Administration Console REST API
+ */
+router.get('/users', async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Permission denied. Administrators only.' });
+  }
+  try {
+    const users = await mongoose.model('sys_users').find({}, { password_hash: 0 });
+    res.status(200).json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/users', async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Permission denied. Administrators only.' });
+  }
+  const { username, password, email, role } = req.body;
+  if (!username || !password || !email) {
+    return res.status(400).json({ error: 'Username, password, and email are required.' });
+  }
+  const bcrypt = require('bcryptjs');
+  try {
+    const existing = await mongoose.model('sys_users').findOne({ username });
+    if (existing) {
+      return res.status(400).json({ error: 'Username already exists.' });
+    }
+    const password_hash = await bcrypt.hash(password, 10);
+    const newUser = await mongoose.model('sys_users').create({
+      username,
+      password_hash,
+      email,
+      role: role || 'admin',
+      status: 'active'
+    });
+    
+    const userObj = newUser.toObject();
+    delete userObj.password_hash;
+    res.status(201).json(userObj);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/users/:username/status', async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Permission denied. Administrators only.' });
+  }
+  const { username } = req.params;
+  const { status } = req.body;
+  
+  if (req.user.username === username && status === 'disabled') {
+    return res.status(400).json({ error: 'Cannot disable your own administrative account.' });
+  }
+
+  try {
+    const user = await mongoose.model('sys_users').findOneAndUpdate(
+      { username },
+      { status },
+      { new: true }
+    );
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+    res.status(200).json({ username: user.username, status: user.status });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

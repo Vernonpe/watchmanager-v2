@@ -225,5 +225,40 @@ Verify that the Main Menu layout settings (title, description, and list items) c
 - The visual mapping chart displays the Main Menu block connected to the subflow blocks.
 - Clicking "Save Router Settings" makes a `POST /api/admin/menu` request, and reloading performs a `GET /api/admin/menu` request which returns the updated settings.
 
+---
+
+## TC-016: Channel360 Credentials Template Message Restrictions
+### Description
+Verify that when "Allow Template Messages" is disabled for a tenant, the Visual Journey Builder disables the Meta Template Name and Template Parameters fields and displays a warning banner.
+### Action
+1. Open the Config Panel at `http://localhost:5173/config`.
+2. Select a tenant and go to the Channel360 Integration credentials section.
+3. Uncheck **Allow Template Messages** and click **Update Integration Credentials**.
+4. Navigate to the Journey Builder at `http://localhost:5173/builder` and select a Text prompt node.
+5. Inspect the properties sidebar.
+### Expected Results
+- A warning banner is displayed stating: "Template messages are disabled in Channel360 Credentials config."
+- The "Meta Template Name" and "Template Parameters" input fields are disabled, preventing any modifications or template additions.
+
+---
+
+## TC-017: User Authentication and Administrative Account Management
+### Description
+Verify that administrative routes are locked behind JWT authentication, requiring a valid login token. Also verify that administrators can create new user accounts and toggle their active/disabled status.
+### Action
+1. Attempt to navigate to `http://localhost:5173/builder` without being logged in.
+2. Log in using username `admin` and password `admin_novare_123`.
+3. Go to the User Accounts panel via the sidebar navigation link.
+4. Fill in form: Username `operator_john`, Email `john@novare.co.za`, Password `john_operator_password`, Role `Operator`, and click **Register User Account**.
+5. Locate the newly created user `operator_john` in the list, and click **Disable**.
+6. Open a new incognito window, navigate to the portal, and attempt to log in using `operator_john` and `john_operator_password`.
+### Expected Results
+- Attempting to visit `/builder` without a token automatically redirects the browser to `/login`.
+- Logging in successfully stores the JWT token and redirects to the dashboard.
+- Registering a new account makes a `POST /api/admin/users` call and updates the active user list table.
+- Disabling the user makes a `POST /api/admin/users/operator_john/status` call and sets their status to `disabled`.
+- Logging in as a disabled user fails with a `403 Forbidden` error "This user account is disabled".
+- Current user cannot disable their own active account.
+
 
 

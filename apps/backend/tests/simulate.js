@@ -254,6 +254,14 @@ async function runTests() {
     'X-Channel360-Org-ID': 'org_watchmanager_test'
   };
 
+  const jwt = require('jsonwebtoken');
+  const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_session_token_key_12345';
+  const token = jwt.sign({ username: 'admin', role: 'admin' }, JWT_SECRET, { expiresIn: '1h' });
+  const adminHeaders = {
+    ...headers,
+    'Authorization': `Bearer ${token}`
+  };
+
   // Step 1: Simulate user typing ingress trigger keyword 'service' using the dynamic UUID messages route
   console.log(`[Test] 1. Dispatching Inbound Ingress keyword "service" from ${clientMobile} via dynamic messages route...`);
   await axios.post(`${BASE_URL}/platform_watchmanager_test_uuid/whatsapp/messages`, {
@@ -550,7 +558,7 @@ async function runTests() {
     items: [
       { index: 1, label: "Log service request", target_journey_id: "journey_watchmanager_v2", is_hidden: false }
     ]
-  }, { headers });
+  }, { headers: adminHeaders });
 
   // 2. Clear existing session
   await mongoose.model('runtime_whatsapp_sessions').deleteMany({ tenant_id: "tenant_watchmanager_prod_01", mobile: clientMobile });
@@ -602,6 +610,53 @@ async function runTests() {
     throw new Error(`Test Step 13 Failed: Transition destination mismatch. Got: ${sessionAfterSelect.active_journey_id}`);
   }
   console.log('  [PASS] Session transitioned to subflow journey_watchmanager_v2 successfully.');
+
+  // Test 14: User Authentication & Auth Middleware protection
+  console.log('[Test] 14. Verifying User Authentication & JWT Middleware Protection...');
+  
+  // Seed the test admin user
+  const bcrypt = require('bcryptjs');
+  const hashedPass = await bcrypt.hash('admin_novare_123', 10);
+  await mongoose.model('sys_users').deleteMany({});
+  await mongoose.model('sys_users').create({
+    username: 'test_admin',
+    password_hash: hashedPass,
+    email: 'admin_test@novare.co.za',
+    role: 'admin',
+    status: 'active'
+  });
+
+  // Verify access is rejected (401) without authentication token
+  try {
+    await axios.get(`http://localhost:${PORT}/api/admin/users`);
+    throw new Error('Test Step 14 Failed: Administrative endpoint allowed access without JWT token.');
+  } catch (err) {
+    if (!err.response || err.response.status !== 401) {
+      throw new Error(`Test Step 14 Failed: Expected 401 Unauthorized status, got: ${err.response?.status}`);
+    }
+    console.log('  [PASS] Request without token rejected with 401 Unauthorized.');
+  }
+
+  // Perform a login call and get a token
+  const authRes = await axios.post(`http://localhost:${PORT}/api/auth/login`, {
+    username: 'test_admin',
+    password: 'admin_novare_123'
+  });
+  
+  if (!authRes.data.token) {
+    throw new Error('Test Step 14 Failed: Login route did not return authentication token.');
+  }
+  console.log('  [PASS] Successfully authenticated and retrieved signed JWT token.');
+
+  // Access administrative endpoint with token
+  const usersListRes = await axios.get(`http://localhost:${PORT}/api/admin/users`, {
+    headers: { Authorization: `Bearer ${authRes.data.token}` }
+  });
+  
+  if (!Array.isArray(usersListRes.data) || usersListRes.data.length === 0) {
+    throw new Error('Test Step 14 Failed: Failed to query users list using valid token.');
+  }
+  console.log('  [PASS] Request with valid token authorized successfully.');
 
   console.log('\n🎉 ALL STATE MACHINE & PREEMPTION FLOW INTEGRATION TESTS PASSED VERIFICATION 🎉\n');
 }

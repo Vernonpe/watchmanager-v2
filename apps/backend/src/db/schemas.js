@@ -162,10 +162,21 @@ const auditSystemExceptionsSchema = new mongoose.Schema({
 });
 auditSystemExceptionsSchema.index({ created_at: -1 });
 
+const sysUsersSchema = new mongoose.Schema({
+  username: { type: String, unique: true, required: true },
+  password_hash: { type: String, required: true },
+  email: { type: String, required: true },
+  role: { type: String, enum: ['admin', 'operator'], default: 'admin' },
+  status: { type: String, enum: ['active', 'disabled'], default: 'active' },
+  created_at: { type: Date, default: Date.now }
+});
+sysUsersSchema.index({ username: 1 });
+
 // Initialize Mongoose Models
 const SysTenants = mongoose.model('sys_tenants', sysTenantsSchema);
 const SysChannel360Credentials = mongoose.model('sys_channel360_credentials', sysChannel360CredentialsSchema);
 const SysPlatformConfigs = mongoose.model('sys_platform_configs', sysPlatformConfigsSchema);
+const SysUsers = mongoose.model('sys_users', sysUsersSchema);
 const BuilderJourneys = mongoose.model('builder_journeys', builderJourneysSchema);
 const BuilderConversationalTemplates = mongoose.model('builder_conversational_templates', builderConversationalTemplatesSchema);
 const BuilderMenus = mongoose.model('builder_menus', builderMenusSchema);
@@ -179,6 +190,7 @@ module.exports = {
   SysTenants,
   SysChannel360Credentials,
   SysPlatformConfigs,
+  SysUsers,
   BuilderJourneys,
   BuilderConversationalTemplates,
   BuilderMenus,
