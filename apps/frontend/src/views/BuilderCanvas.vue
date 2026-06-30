@@ -844,7 +844,7 @@ const menuConfig = ref({
 const journeyName = ref('WatchManager Unified Journey');
 const triggerKeyword = ref('service');
 const priority = ref(1);
-const journeyId = ref('journey_watchmanager_v2');
+const journeyId = ref('');
 const sessionTimeout = ref(1440);
 const exitKeywordsStr = ref('exit, stop');
 const journeyTag = ref('');
@@ -1349,9 +1349,12 @@ const fetchPaletteNodes = async () => {
   }
 };
 
-onMounted(() => {
+onMounted(async () => {
   fetchPaletteNodes();
-  fetchTenants();
+  await fetchTenants();
+  if (!selectedJourneyId.value && !journeyId.value) {
+    createNewFreshJourney();
+  }
 });
 </script>
 
