@@ -99,6 +99,22 @@ const handleUpdateNotes = async () => {
   }
 };
 
+const deleteLog = async (id) => {
+  if (!confirm('Are you sure you want to delete this captured request log?')) return;
+  successMsg.value = '';
+  errorMsg.value = '';
+  try {
+    await axios.delete(`/api/dev/admin/logs/${id}`);
+    successMsg.value = 'Request log deleted successfully.';
+    if (selectedLog.value && selectedLog.value._id === id) {
+      selectedLog.value = null;
+    }
+    await fetchLogs();
+  } catch (err) {
+    errorMsg.value = err.response?.data?.error || 'Failed to delete request log';
+  }
+};
+
 const formatDate = (dateStr) => {
   if (!dateStr) return 'N/A';
   return new Date(dateStr).toLocaleString('en-ZA', {
@@ -197,7 +213,10 @@ onMounted(() => {
                 <td class="purpose-cell">{{ log.purpose || 'N/A' }}</td>
                 <td class="notes-cell" :title="log.notes">{{ log.notes || 'Click Edit to add notes...' }}</td>
                 <td>
-                  <button class="edit-btn" @click.stop="selectLog(log)">Edit Notes</button>
+                  <div class="actions-cell">
+                    <button class="edit-btn" @click.stop="selectLog(log)">Edit</button>
+                    <button class="delete-btn" @click.stop="deleteLog(log._id)">Delete</button>
+                  </div>
                 </td>
               </tr>
               <tr v-if="logs.length === 0 && !isLoadingLogs">
@@ -576,6 +595,28 @@ onMounted(() => {
   border-color: var(--accent-cyan);
 }
 
+.actions-cell {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.delete-btn {
+  padding: 0.4rem 0.8rem;
+  background: rgba(220, 53, 69, 0.15);
+  color: #ff4d4f;
+  border: 1px solid rgba(220, 53, 69, 0.3);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.delete-btn:hover {
+  background: rgba(220, 53, 69, 0.3);
+  border-color: #ff4d4f;
+}
+
 .viewer-section {
   padding: 2rem;
   min-height: 500px;
@@ -658,8 +699,8 @@ onMounted(() => {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
+  right: 0;
+  bottom: 0;
   background: rgba(0, 0, 0, 0.6);
   z-index: 1000;
   display: flex;
@@ -674,7 +715,19 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border-light);
   box-shadow: -8px 0 32px rgba(0, 0, 0, 0.5);
+  animation: slideLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideLeft {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
 }
 
 .drawer-header {

@@ -740,6 +740,18 @@ async function runTests() {
   }
   console.log('  [PASS] Log annotations successfully updated via admin endpoints.');
 
+  // Delete log via authenticated admin routes
+  const deleteRes = await axios.delete(`http://localhost:${PORT}/api/dev/admin/logs/${savedLog._id}`, configHeader);
+  if (deleteRes.data.success !== true) {
+    throw new Error('Test Step 15 Failed: Failed to delete log record.');
+  }
+  
+  dbCount = await mongoose.model('dev_api_logs').countDocuments({});
+  if (dbCount !== 0) {
+    throw new Error('Test Step 15 Failed: Log record was not removed from MongoDB.');
+  }
+  console.log('  [PASS] Log records successfully deleted via admin endpoint.');
+
   console.log('\n🎉 ALL STATE MACHINE & PREEMPTION FLOW INTEGRATION TESTS PASSED VERIFICATION 🎉\n');
 }
 

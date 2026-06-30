@@ -118,4 +118,19 @@ router.post('/admin/config', authMiddleware, async (req, res) => {
   }
 });
 
+// 5. Delete a specific request log record
+router.delete('/admin/logs/:id', authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const DevApiLogs = mongoose.model('dev_api_logs');
+    const log = await DevApiLogs.findByIdAndDelete(id);
+    if (!log) {
+      return res.status(404).json({ error: 'Developer request log record not found.' });
+    }
+    res.status(200).json({ success: true, message: 'Request log deleted successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
