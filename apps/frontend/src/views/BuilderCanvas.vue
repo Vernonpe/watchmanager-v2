@@ -487,7 +487,7 @@
                     
                     <div class="form-group-inline">
                       <label>ID (System):</label>
-                      <input v-model="btn.id" type="text" class="glass-input sub-input" placeholder="e.g. opt_yes" />
+                      <input :value="btn.id" @input="updateHandleId(btn, $event.target.value)" type="text" class="glass-input sub-input" placeholder="e.g. opt_yes" />
                     </div>
                     
                     <div class="form-group-inline" style="margin-top: 8px;">
@@ -541,7 +541,7 @@
                     
                     <div class="form-group-inline">
                       <label>ID (System):</label>
-                      <input v-model="row.id" type="text" class="glass-input sub-input" placeholder="e.g. row_1" maxlength="200" />
+                      <input :value="row.id" @input="updateHandleId(row, $event.target.value)" type="text" class="glass-input sub-input" placeholder="e.g. row_1" maxlength="200" />
                     </div>
                     
                     <div class="form-group-inline" style="margin-top: 8px;">
@@ -1091,6 +1091,29 @@ const onConnect = (connection) => {
   if (!exists) {
     edges.value.push(newEdge);
   }
+};
+
+// Dynamically update edge handles if a user changes an ID inside the properties drawer
+const updateHandleId = (item, newId) => {
+  const oldId = item.id;
+  if (!oldId || oldId === newId) {
+    item.id = newId;
+    return;
+  }
+  
+  if (selectedNode.value) {
+    const nodeId = selectedNode.value.id;
+    edges.value.forEach(edge => {
+      // If there's an existing edge pinned to the old ID, proactively migrate it to the new ID
+      if (edge.source === nodeId && edge.sourceHandle === oldId) {
+        edge.sourceHandle = newId;
+        // Update the VueFlow deterministic ID to prevent collision errors
+        edge.id = `e-${edge.source}-${newId}-${edge.target}`;
+      }
+    });
+  }
+  
+  item.id = newId;
 };
 
 // Add node on canvas
