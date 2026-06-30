@@ -25,27 +25,6 @@
               </select>
             </div>
           </div>
-
-          <!-- Mode Switcher -->
-          <div class="scope-item">
-            <span class="scope-label">Workspace Mode</span>
-            <div class="mode-switcher-container">
-              <button 
-                class="mode-switch-btn" 
-                :class="{ active: editorMode === 'canvas' }" 
-                @click="editorMode = 'canvas'"
-              >
-                Journey Flow
-              </button>
-              <button 
-                class="mode-switch-btn" 
-                :class="{ active: editorMode === 'menu' }" 
-                @click="loadMenuConfig"
-              >
-                Main Menu Router
-              </button>
-            </div>
-          </div>
         </div>
 
         <!-- Global Actions -->
@@ -66,17 +45,25 @@
       <!-- Row 2: Journey Configuration Settings -->
       <div class="header-bottom-row">
         <div class="config-grid">
-          <!-- Card A: Identity -->
+          <!-- Card A: Workspace Mode -->
           <div class="config-card">
-            <div class="card-title">Identity</div>
+            <div class="card-title">Workspace Mode</div>
             <div class="card-body">
-              <div class="input-group">
-                <label>Journey ID</label>
-                <input v-model="journeyId" type="text" class="glass-input card-input journey-id-field" placeholder="journey_id (unique)" :disabled="!!selectedJourneyId" />
-              </div>
-              <div class="input-group">
-                <label>Journey Name</label>
-                <input v-model="journeyName" type="text" class="glass-input card-input name-input-field" placeholder="Journey Name" />
+              <div class="mode-switcher-container">
+                <button 
+                  class="mode-switch-btn" 
+                  :class="{ active: editorMode === 'canvas' }" 
+                  @click="editorMode = 'canvas'"
+                >
+                  Journey Flow
+                </button>
+                <button 
+                  class="mode-switch-btn" 
+                  :class="{ active: editorMode === 'menu' }" 
+                  @click="loadMenuConfig"
+                >
+                  Main Menu Router
+                </button>
               </div>
             </div>
           </div>
@@ -178,8 +165,11 @@
             <!-- Active Journey Title Overlay -->
             <div class="canvas-active-title-overlay glass-panel animate-slide-down">
               <span class="active-title-label">Editing Blueprint</span>
-              <span class="active-title-name">{{ journeyName || 'New Blueprint' }}</span>
-              <span class="active-title-id"><code>{{ journeyId || 'unsaved' }}</code></span>
+              <input v-model="journeyName" type="text" class="active-title-input-field" placeholder="Enter Journey Name..." />
+              <div class="active-title-id-row">
+                <span class="active-title-id-label">ID:</span>
+                <input v-model="journeyId" type="text" class="active-title-id-input" placeholder="journey_id" :disabled="!!selectedJourneyId" />
+              </div>
             </div>
 
             <!-- FLOATING TOOLBAR -->
@@ -1918,14 +1908,14 @@ input:checked + .switch-slider:before {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 10px 16px;
+  padding: 12px 18px;
   z-index: 10;
   border-radius: 10px;
-  background: rgba(10, 15, 30, 0.7);
+  background: rgba(10, 15, 30, 0.75);
   border: 1px solid var(--border-light);
   box-shadow: var(--shadow-dark);
   backdrop-filter: blur(10px);
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .canvas-active-title-overlay .active-title-label {
@@ -1936,20 +1926,58 @@ input:checked + .switch-slider:before {
   color: var(--accent-cyan);
 }
 
-.canvas-active-title-overlay .active-title-name {
+.active-title-input-field {
+  background: transparent;
+  border: none;
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--text-main);
+  outline: none;
+  border-bottom: 1px solid transparent;
+  padding: 2px 0;
+  transition: all 0.3s ease;
+  width: 220px;
 }
 
-.canvas-active-title-overlay .active-title-id {
+.active-title-input-field:focus {
+  border-color: var(--accent-cyan);
+}
+
+.active-title-id-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-size: 0.7rem;
   color: var(--text-muted);
 }
 
-.canvas-active-title-overlay .active-title-id code {
-  color: var(--accent-purple);
+.active-title-id-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.active-title-id-input {
+  background: transparent;
+  border: none;
   font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--accent-purple);
+  outline: none;
+  border-bottom: 1px solid transparent;
+  padding: 1px 0;
+  transition: all 0.3s ease;
+  width: 140px;
+}
+
+.active-title-id-input:focus:not(:disabled) {
+  border-color: var(--accent-purple);
+}
+
+.active-title-id-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.8;
 }
 
 .animate-slide-down {
