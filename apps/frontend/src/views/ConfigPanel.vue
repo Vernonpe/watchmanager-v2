@@ -140,6 +140,10 @@
                 <input v-model="credentials.is_test_mode" type="checkbox" id="cred_test_mode" />
                 <label for="cred_test_mode">Enable Test Mode (Redirects gateway requests to mock callback server)</label>
               </div>
+              <div class="form-group check-group" style="margin-top: 8px;">
+                <input v-model="credentials.allow_template_messages" type="checkbox" id="cred_allow_template" />
+                <label for="cred_allow_template">Allow Template Messages (Enable template selection and parameters in Journey Builder)</label>
+              </div>
               
               <button class="glass-btn glass-btn-primary save-btn" @click="saveCredentials">
                 Update Credentials

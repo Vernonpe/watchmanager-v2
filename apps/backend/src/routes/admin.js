@@ -179,7 +179,7 @@ router.get('/credentials', async (req, res) => {
 });
 
 router.post('/credentials', async (req, res) => {
-  const { org_id, bearer_token, channel_account_name, watch_manager_base_url, is_test_mode } = req.body;
+  const { org_id, bearer_token, channel_account_name, watch_manager_base_url, is_test_mode, allow_template_messages } = req.body;
   try {
     const creds = await mongoose.model('sys_channel360_credentials').findOneAndUpdate(
       { tenant_id: req.tenant_id },
@@ -189,6 +189,7 @@ router.post('/credentials', async (req, res) => {
         channel_account_name, 
         watch_manager_base_url, 
         is_test_mode: is_test_mode !== undefined ? is_test_mode : true,
+        allow_template_messages: allow_template_messages !== undefined ? allow_template_messages : true,
         updated_at: new Date()
       },
       { upsert: true, new: true }

@@ -22,6 +22,7 @@ const sysChannel360CredentialsSchema = new mongoose.Schema({
   channel_account_name: { type: String, required: true },
   watch_manager_base_url: { type: String, required: true },
   is_test_mode: { type: Boolean, default: true },
+  allow_template_messages: { type: Boolean, default: true }, // Whether tenant is allowed to send templates
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now }
 });

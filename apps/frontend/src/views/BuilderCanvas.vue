@@ -447,9 +447,24 @@
               <div v-if="selectedNode.type && selectedNode.type.startsWith('prompt_')" class="fallback-template-section">
                 <hr class="divider" />
                 <h4 class="section-sub-title">24h Support Window Template Fallback</h4>
+                
+                <div v-if="!allowTemplateMessages" class="template-disabled-alert">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" class="lock-icon">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                  <span>Template messages are disabled in Channel360 Credentials config.</span>
+                </div>
+
                 <div class="form-group">
                   <label>Meta Template Name</label>
-                  <input v-model="selectedNode.config.fallback_template_name" type="text" class="glass-input" placeholder="e.g. service_reinitiate" />
+                  <input 
+                    v-model="selectedNode.config.fallback_template_name" 
+                    type="text" 
+                    class="glass-input" 
+                    placeholder="e.g. service_reinitiate" 
+                    :disabled="!allowTemplateMessages"
+                  />
                 </div>
                 <div class="form-group" style="margin-top: 8px;">
                   <label>Template Parameters (comma separated)</label>
@@ -459,6 +474,7 @@
                     type="text" 
                     class="glass-input" 
                     placeholder="e.g. collected_data.fullname" 
+                    :disabled="!allowTemplateMessages"
                   />
                 </div>
               </div>
@@ -690,12 +706,27 @@ const fetchTenants = async () => {
 };
 
 // Fetch journeys for selected tenant
+const allowTemplateMessages = ref(true);
+
 const fetchJourneys = async () => {
   try {
     const tenantHeader = { headers: { 'x-tenant-id': selectedTenantId.value } };
     const res = await axios.get('/api/admin/journeys', tenantHeader);
     journeys.value = res.data;
     selectedJourneyId.value = '';
+    
+    // Fetch Channel360 credentials to check allow_template_messages flag
+    try {
+      const credRes = await axios.get('/api/admin/credentials', tenantHeader);
+      if (credRes.data) {
+        allowTemplateMessages.value = credRes.data.allow_template_messages !== false;
+      } else {
+        allowTemplateMessages.value = true;
+      }
+    } catch (credErr) {
+      console.warn('Failed to load credentials for template message check:', credErr.message);
+      allowTemplateMessages.value = true;
+    }
   } catch (err) {
     console.error('Failed to load journeys:', err.message);
   }
@@ -2232,5 +2263,33 @@ input:checked + .switch-slider:before {
 @keyframes pulseBorder {
   0%, 100% { border-color: rgba(255, 75, 75, 0.4); box-shadow: 0 0 8px rgba(255, 75, 75, 0.1); }
   50% { border-color: rgba(255, 75, 75, 0.7); box-shadow: 0 0 15px rgba(255, 75, 75, 0.25); }
+}
+
+/* Fallback Template Messaging Disabled Banner */
+.template-disabled-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 170, 0, 0.08);
+  border: 1px solid rgba(255, 170, 0, 0.2);
+  color: var(--accent-orange);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  margin-bottom: 12px;
+  line-height: 1.3;
+}
+
+.template-disabled-alert .lock-icon {
+  flex-shrink: 0;
+  color: var(--accent-orange);
+}
+
+.fallback-template-section input:disabled {
+  background: rgba(255, 255, 255, 0.01) !important;
+  border-color: rgba(255, 255, 255, 0.05) !important;
+  color: var(--text-muted) !important;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 </style>
