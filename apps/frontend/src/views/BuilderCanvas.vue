@@ -102,6 +102,35 @@
           <Background pattern-color="#ffffff" :gap="16" :size="1" />
           <Controls />
         </VueFlow>
+
+        <!-- FLOATING TOOLBAR -->
+        <div class="canvas-toolbar glass-panel">
+          <button class="toolbar-btn" @click="zoomIn" title="Zoom In">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+          <button class="toolbar-btn" @click="zoomOut" title="Zoom Out">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+          <button class="toolbar-btn" @click="fitView({ padding: 0.15 })" title="Fit View">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <path d="M15 3h6v6M9 21H3v-6M21 15v6h-6M3 9V3h6" />
+            </svg>
+          </button>
+          <button class="toolbar-btn layout-btn" @click="autoLayoutFlow" title="Auto Layout Graph">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <circle cx="12" cy="5" r="3" />
+              <circle cx="6" cy="19" r="3" />
+              <circle cx="18" cy="19" r="3" />
+              <path d="M12 8v8M6 16l6-8M18 16l-6-8" />
+            </svg>
+            <span>Auto Layout</span>
+          </button>
+        </div>
       </div>
 
       <!-- Properties Drawer Panel -->
@@ -288,11 +317,13 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue';
-import { VueFlow } from '@vue-flow/core';
+import { ref, watch, onMounted, computed } from 'vue';
+import { VueFlow, useVueFlow } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
 import { Controls } from '@vue-flow/controls';
 import axios from 'axios';
+
+const { zoomIn, zoomOut, fitView } = useVueFlow();
 
 // Load default vue flow styles
 import '@vue-flow/core/dist/style.css';
@@ -624,6 +655,88 @@ const saveJourney = async () => {
     console.error(err);
     alert('Error saving blueprint: ' + err.message);
   }
+};
+
+const autoLayoutFlow = () => {
+  if (nodes.value.length === 0) return;
+
+  // 1. Identify first node
+  let rootNode = nodes.value.find(n => n.id === 'node_start') ||
+                 nodes.value.find(n => n.type === 'start') ||
+                 nodes.value.find(n => {
+                   return !edges.value.some(e => e.target === n.id);
+                 }) ||
+                 nodes.value[0];
+
+  if (!rootNode) return;
+
+  // 2. Build adjacency list of children
+  const adj = {};
+  nodes.value.forEach(n => {
+    adj[n.id] = [];
+  });
+  edges.value.forEach(e => {
+    if (adj[e.source]) {
+      adj[e.source].push(e.target);
+    }
+  });
+
+  // 3. BFS to determine level rank
+  const levels = {};
+  const visited = new Set();
+  const queue = [{ id: rootNode.id, level: 0 }];
+
+  while (queue.length > 0) {
+    const { id, level } = queue.shift();
+    if (visited.has(id)) continue;
+    visited.add(id);
+    levels[id] = level;
+
+    const children = adj[id] || [];
+    children.forEach(childId => {
+      queue.push({ id: childId, level: level + 1 });
+    });
+  }
+
+  // Handle any orphan/disconnected nodes
+  nodes.value.forEach(n => {
+    if (levels[n.id] === undefined) {
+      levels[n.id] = 0; 
+    }
+  });
+
+  // 4. Group nodes by level
+  const groups = {};
+  nodes.value.forEach(n => {
+    const lvl = levels[n.id];
+    if (!groups[lvl]) groups[lvl] = [];
+    groups[lvl].push(n);
+  });
+
+  // 5. Calculate coordinates in place
+  const verticalGap = 160;
+  const horizontalGap = 240;
+  const startX = 400;
+  const startY = 80;
+
+  Object.keys(groups).forEach(lvlStr => {
+    const lvl = parseInt(lvlStr, 10);
+    const grp = groups[lvl];
+    const count = grp.length;
+
+    grp.forEach((node, idx) => {
+      const xOffset = (idx - (count - 1) / 2) * horizontalGap;
+      node.position = {
+        x: startX + xOffset,
+        y: startY + lvl * verticalGap
+      };
+    });
+  });
+
+  // Center view on the new layout
+  setTimeout(() => {
+    fitView({ padding: 0.15 });
+  }, 100);
 };
 
 onMounted(() => {
@@ -983,5 +1096,61 @@ onMounted(() => {
 .slide-enter-from,
 .slide-leave-to {
   transform: translateX(100%);
+}
+
+/* Floating Workspace Toolbar */
+.canvas-toolbar {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  z-index: 10;
+  border-radius: 12px;
+  background: rgba(10, 15, 30, 0.65);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-dark);
+  backdrop-filter: blur(10px);
+}
+
+.toolbar-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-light);
+  color: var(--text-muted);
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.toolbar-btn:hover {
+  background: var(--bg-surface-hover);
+  color: var(--accent-cyan);
+  border-color: var(--accent-cyan);
+  box-shadow: var(--shadow-glow-cyan);
+}
+
+.toolbar-btn svg {
+  transition: transform 0.2s ease;
+}
+
+.toolbar-btn:hover svg {
+  transform: scale(1.1);
+}
+
+.toolbar-btn.layout-btn {
+  width: auto;
+  padding: 0 14px;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 0.78rem;
+  font-family: var(--font-main);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 </style>
