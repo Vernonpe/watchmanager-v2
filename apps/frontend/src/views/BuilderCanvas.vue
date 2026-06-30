@@ -358,7 +358,7 @@ watch(selectedNode, (node) => {
 // Fetch tenant accounts
 const fetchTenants = async () => {
   try {
-    const res = await axios.get('http://localhost:3001/api/admin/tenants');
+    const res = await axios.get('/api/admin/tenants');
     tenants.value = res.data;
     if (tenants.value.length > 0) {
       // Find default selected tenant if present
@@ -377,7 +377,7 @@ const fetchTenants = async () => {
 const fetchJourneys = async () => {
   try {
     const tenantHeader = { headers: { 'x-tenant-id': selectedTenantId.value } };
-    const res = await axios.get('http://localhost:3001/api/admin/journeys', tenantHeader);
+    const res = await axios.get('/api/admin/journeys', tenantHeader);
     journeys.value = res.data;
     selectedJourneyId.value = '';
   } catch (err) {
@@ -616,7 +616,7 @@ const saveJourney = async () => {
 
   try {
     const tenantHeader = { headers: { 'x-tenant-id': selectedTenantId.value } };
-    await axios.post('http://localhost:3001/api/admin/journeys', payload, tenantHeader);
+    await axios.post('/api/admin/journeys', payload, tenantHeader);
     alert('Blueprint saved successfully to local database!');
     await fetchJourneys();
     selectedJourneyId.value = journeyId.value;

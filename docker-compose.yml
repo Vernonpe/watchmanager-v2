@@ -1,0 +1,34 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${HOST_PORT:-3001}:3001"
+    env_file:
+      - .env.prod
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      MONGO_URI: ${MONGO_URI:-mongodb://localhost:27017/WatchManager}
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      # HTTPS router for primary host
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-watchmanager}-https.rule=Host(`${HOST_URL}`)"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-watchmanager}-https.entrypoints=websecure"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-watchmanager}-https.tls=true"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-watchmanager}-https.tls.certresolver=myresolver"
+      - "traefik.http.services.${COMPOSE_PROJECT_NAME:-watchmanager}.loadbalancer.server.port=3001"
+      # HTTP router for primary host that redirects to HTTPS
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-watchmanager}-http.rule=Host(`${HOST_URL}`)"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-watchmanager}-http.entrypoints=web"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME:-watchmanager}-http.middlewares=redirect-to-https-${COMPOSE_PROJECT_NAME:-watchmanager}"
+      - "traefik.http.middlewares.redirect-to-https-${COMPOSE_PROJECT_NAME:-watchmanager}.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.redirect-to-https-${COMPOSE_PROJECT_NAME:-watchmanager}.redirectscheme.permanent=true"
+    networks:
+      - traefik_network
+
+networks:
+  traefik_network:
+    external: true

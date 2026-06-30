@@ -26,6 +26,18 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected' });
 });
 
+// Serve static frontend files in production
+const path = require('path');
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../../frontend/dist')));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/health')) {
+      return next();
+    }
+    res.sendFile(path.join(__dirname, '../../frontend/dist/index.html'));
+  });
+}
+
 // Database connection & startup
 mongoose.connect(MONGO_URI)
   .then(() => {

@@ -160,11 +160,11 @@
                 <p class="webhook-desc">Configure these callback addresses in your C360 gateway portal to route data to this state interpreter:</p>
                 <div class="url-copy-box">
                   <span class="label">Inbound Message Webhook URL (Dynamic with Platform UUID)</span>
-                  <code class="code-val">http://localhost:3001/api/{{ activeTenantPlatformUuid || 'PENDING' }}/whatsapp/messages</code>
+                  <code class="code-val">{{ activeOrigin }}/api/{{ activeTenantPlatformUuid || 'PENDING' }}/whatsapp/messages</code>
                 </div>
                 <div class="url-copy-box">
                   <span class="label">Delivery Notifications URL (Dynamic with Platform UUID)</span>
-                  <code class="code-val">http://localhost:3001/api/{{ activeTenantPlatformUuid || 'PENDING' }}/whatsapp/notifications</code>
+                  <code class="code-val">{{ activeOrigin }}/api/{{ activeTenantPlatformUuid || 'PENDING' }}/whatsapp/notifications</code>
                 </div>
               </div>
             </div>
@@ -254,6 +254,16 @@ const credentials = ref({
   is_test_mode: true
 });
 
+const activeOrigin = computed(() => {
+  if (typeof window !== 'undefined') {
+    if (window.location.hostname === 'localhost' && window.location.port === '5173') {
+      return 'http://localhost:3001';
+    }
+    return window.location.origin;
+  }
+  return 'http://localhost:3001';
+});
+
 const activeTenantPlatformUuid = computed(() => {
   const match = tenants.value.find(t => t.tenant_id === selectedTenantId.value);
   return match ? match.platform_uuid : '';
@@ -261,7 +271,7 @@ const activeTenantPlatformUuid = computed(() => {
 
 const fetchTenants = async () => {
   try {
-    const res = await axios.get('http://localhost:3001/api/admin/tenants');
+    const res = await axios.get('/api/admin/tenants');
     tenants.value = res.data;
     if (tenants.value.length > 0 && !selectedTenantId.value) {
       selectTenant(tenants.value[0].tenant_id);
@@ -284,7 +294,7 @@ const selectTenant = async (tenantId) => {
 
   // Load tenant credentials
   try {
-    const credResp = await axios.get('http://localhost:3001/api/admin/credentials', tenantHeader);
+    const credResp = await axios.get('/api/admin/credentials', tenantHeader);
     if (credResp.data) {
       credentials.value = credResp.data;
     } else {
@@ -302,7 +312,7 @@ const selectTenant = async (tenantId) => {
 
   // Load tenant journeys
   try {
-    const journeysResp = await axios.get('http://localhost:3001/api/admin/journeys', tenantHeader);
+    const journeysResp = await axios.get('/api/admin/journeys', tenantHeader);
     tenantJourneys.value = journeysResp.data;
   } catch (e) {
     console.warn('Failed to load journeys for tenant:', tenantId);
@@ -326,7 +336,7 @@ const createTenant = async () => {
   }
 
   try {
-    const res = await axios.post('http://localhost:3001/api/admin/tenants', newTenant.value);
+    const res = await axios.post('/api/admin/tenants', newTenant.value);
     alert('Tenant successfully registered with auto-generated unique platform UUID!');
     showNewTenantForm.value = false;
     await fetchTenants();
@@ -342,7 +352,7 @@ const saveTenantDetails = async () => {
     return;
   }
   try {
-    await axios.post('http://localhost:3001/api/admin/tenants', {
+    await axios.post('/api/admin/tenants', {
       tenant_id: selectedTenant.value.tenant_id,
       name: selectedTenant.value.name,
       contact_email: selectedTenant.value.contact_email,
@@ -358,7 +368,7 @@ const saveTenantDetails = async () => {
 const toggleTenantStatus = async (tenant) => {
   const nextStatus = tenant.status === 'active' ? 'suspended' : 'active';
   try {
-    await axios.post('http://localhost:3001/api/admin/tenants', {
+    await axios.post('/api/admin/tenants', {
       tenant_id: tenant.tenant_id,
       name: tenant.name,
       contact_email: tenant.contact_email,
@@ -380,7 +390,7 @@ const deleteCustomer = async () => {
   }
 
   try {
-    await axios.delete(`http://localhost:3001/api/admin/tenants/${selectedTenantId.value}`);
+    await axios.delete(`/api/admin/tenants/${selectedTenantId.value}`);
     alert('Customer and associated configurations deleted successfully!');
     selectedTenantId.value = '';
     selectedTenant.value = null;
@@ -398,7 +408,7 @@ const saveCredentials = async () => {
 
   try {
     const tenantHeader = { headers: { 'x-tenant-id': selectedTenantId.value } };
-    await axios.post('http://localhost:3001/api/admin/credentials', credentials.value, tenantHeader);
+    await axios.post('/api/admin/credentials', credentials.value, tenantHeader);
     alert('Tenant Integration credentials updated!');
   } catch (err) {
     alert('Failed to save credentials: ' + err.message);
@@ -408,7 +418,7 @@ const saveCredentials = async () => {
 const toggleJourneyState = async (journey) => {
   try {
     const tenantHeader = { headers: { 'x-tenant-id': selectedTenantId.value } };
-    await axios.post('http://localhost:3001/api/admin/journeys', journey, tenantHeader);
+    await axios.post('/api/admin/journeys', journey, tenantHeader);
     console.log('Journey status toggled successfully.');
   } catch (err) {
     alert('Failed to update journey status: ' + err.message);

@@ -159,32 +159,25 @@ const fetchLogsAndSessions = async () => {
     const tenantHeader = { headers: { 'x-tenant-id': 'tenant_watchmanager_prod_01' } };
 
     // Get live feed audit logs
-    const logsResp = await axios.get('http://localhost:3001/api/admin/live_feed', tenantHeader);
+    const logsResp = await axios.get('/api/admin/live_feed', tenantHeader);
     logs.value = logsResp.data;
 
     // Filter and sort logs
     sortedLogs.value = [...logs.value].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
-    // Get active sessions (Mock querying active DB sessions by directly hitting database via helper admin route if available)
-    // For this build, we add a mock fetch sessions admin route or fall back to displaying cached info
-    const sessionsResp = await axios.get('http://localhost:3001/api/admin/journeys', tenantHeader); // Fallback probe or database session fetch
+    // Get active sessions
+    const sessionsResp = await axios.get('/api/admin/journeys', tenantHeader); // Fallback probe or database session fetch
     
-    // We fetch sessions from database using a custom endpoint or mock it based on active sessions
-    // Let's implement active session querying in backend admin routes! (We already did this in routes/admin.js but wait, did we? No, we list journeys. Let's see: is there a session endpoint? Yes, let's query it!)
-    // Wait, in apps/backend/src/routes/admin.js we didn't add a GET /sessions. Let's add it or query sync comparator
-    // We can query sync comparator for active comparison
-    const syncResp = await axios.get('http://localhost:3001/api/admin/sync_compare', tenantHeader);
+    const syncResp = await axios.get('/api/admin/sync_compare', tenantHeader);
     syncCompare.value = syncResp.data;
     syncStatus.value = syncResp.data.sync_status;
 
-    // Also fetch sessions. Let's make an API call to a sessions endpoint.
-    // If it fails, we fall back to a mock session
+    // Also fetch sessions
     try {
-      const sessResp = await axios.get('http://localhost:3001/api/admin/sessions', tenantHeader).catch(() => null);
+      const sessResp = await axios.get('/api/admin/sessions', tenantHeader).catch(() => null);
       if (sessResp && sessResp.data) {
         sessions.value = sessResp.data;
       } else {
-        // Mock session list if endpoint not active
         sessions.value = [];
       }
     } catch (e) {
@@ -251,7 +244,7 @@ const dispatchAlarm = async () => {
   };
 
   try {
-    await axios.post('http://localhost:3001/api/webhook/alarm/trigger', payload);
+    await axios.post('/api/webhook/alarm/trigger', payload);
     alert(`Alarm preemption triggered on line: ${payload.mobile}! Switch to WhatsApp messages stream to watch preemption override.`);
     fetchLogsAndSessions();
   } catch (err) {

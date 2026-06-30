@@ -122,7 +122,7 @@ const pills = [
 
 const fetchTenants = async () => {
   try {
-    const res = await axios.get('http://localhost:3001/api/admin/tenants');
+    const res = await axios.get('/api/admin/tenants');
     tenants.value = res.data;
     if (tenants.value.length > 0) {
       selectedTenantId.value = tenants.value[0].tenant_id;
@@ -142,7 +142,7 @@ const fetchLogs = async () => {
         search: searchQuery.value
       } 
     };
-    const res = await axios.get('http://localhost:3001/api/admin/logs', tenantHeader);
+    const res = await axios.get('/api/admin/logs', tenantHeader);
     logs.value = res.data;
     
     // Auto-select first log if any

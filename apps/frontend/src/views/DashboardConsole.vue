@@ -152,7 +152,7 @@ const stats = ref(null);
 
 const fetchTenants = async () => {
   try {
-    const res = await axios.get('http://localhost:3001/api/admin/tenants');
+    const res = await axios.get('/api/admin/tenants');
     tenants.value = res.data;
     if (tenants.value.length > 0) {
       selectedTenantId.value = tenants.value[0].tenant_id;
@@ -166,7 +166,7 @@ const fetchTenants = async () => {
 const fetchStats = async () => {
   try {
     const tenantHeader = { headers: { 'x-tenant-id': selectedTenantId.value } };
-    const res = await axios.get('http://localhost:3001/api/admin/dashboard_stats', tenantHeader);
+    const res = await axios.get('/api/admin/dashboard_stats', tenantHeader);
     stats.value = res.data;
   } catch (err) {
     console.error('Failed to fetch dashboard stats:', err.message);
