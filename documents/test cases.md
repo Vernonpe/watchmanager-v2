@@ -260,5 +260,27 @@ Verify that administrative routes are locked behind JWT authentication, requirin
 - Logging in as a disabled user fails with a `403 Forbidden` error "This user account is disabled".
 - Current user cannot disable their own active account.
 
+---
+
+## TC-018: Developer Request Logging Console & Config Toggle
+### Description
+Verify that developers can toggle the global API logging state, send raw request payloads to the public endpoint `/api/dev/logger`, view the logs with raw JSON bodies and headers in the inspector, and update notes/annotations on captured log items.
+### Action
+1. Log in to the portal as an administrator and go to the Developer Console via the sidebar link.
+2. Toggle the **Request Logging Status** to **Logging Paused** (Disabled).
+3. Send a POST request to `http://localhost:3001/api/dev/logger` with JSON payload `{"test_event": "panic_click"}` using an external tool (e.g. Postman).
+4. Click the refresh button in the Developer Console and verify no new logs appear.
+5. Toggle the **Request Logging Status** to **Logging Active** (Enabled).
+6. Send the same POST request again.
+7. Click refresh and select the newly captured log item from the table.
+8. View the JSON body in the inspector card on the right.
+9. Click **Edit Notes** on the row, input Source `main_gates` and Notes `Triggered during testing`, and click **Save Annotations**.
+### Expected Results
+- When paused, the endpoint responds with `"Developer request logging is currently disabled."` and no document is created in the `dev_api_logs` collection.
+- When active, the endpoint responds with `{"success":true}` and creates a log document.
+- Clicking refresh displays the captured log with method `POST` and source `main_gates`.
+- The inspector card parses and correctly renders the body `{"test_event": "panic_click"}` and headers.
+- Saving annotations updates the document's `notes` and `source` fields in MongoDB and displays them in the list.
+
 
 

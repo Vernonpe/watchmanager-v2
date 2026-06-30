@@ -9,6 +9,7 @@ require('./db/schemas');
 const webhookRoutes = require('./routes/webhooks');
 const adminRoutes = require('./routes/admin');
 const authRoutes = require('./routes/auth');
+const devRoutes = require('./routes/dev');
 const authMiddleware = require('./middleware/auth');
 const bcrypt = require('bcryptjs');
 
@@ -23,6 +24,7 @@ app.use(express.json());
 // Routes
 app.use('/api', webhookRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/dev', devRoutes);
 app.use('/api/admin', authMiddleware, adminRoutes);
 
 // Simple health probe

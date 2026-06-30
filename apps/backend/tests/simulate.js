@@ -672,6 +672,74 @@ async function runTests() {
   }
   console.log('  [PASS] Request with valid token authorized successfully.');
 
+  console.log('[Test] 15. Verifying Developer Request Logger & Config Toggle...');
+  const devToken = authRes.data.token;
+  const configHeader = { headers: { Authorization: `Bearer ${devToken}` } };
+
+  // Ensure logger config toggle starts as false
+  await axios.post(`http://localhost:${PORT}/api/dev/admin/config`, { enabled: false }, configHeader);
+  let devConfigRes = await axios.get(`http://localhost:${PORT}/api/dev/admin/config`, configHeader);
+  if (devConfigRes.data.enabled !== false) {
+    throw new Error('Test Step 15 Failed: Config enabled state did not update to false.');
+  }
+
+  // Clear previous dev logs
+  await mongoose.model('dev_api_logs').deleteMany({});
+
+  // Dispatch public log request while disabled
+  let logRes = await axios.post(`http://localhost:${PORT}/api/dev/logger`, {
+    test_key: 'test_value_disabled'
+  });
+  if (logRes.data.message !== 'Developer request logging is currently disabled.') {
+    throw new Error('Test Step 15 Failed: Disabled logger did not skip execution.');
+  }
+  
+  let dbCount = await mongoose.model('dev_api_logs').countDocuments({});
+  if (dbCount !== 0) {
+    throw new Error('Test Step 15 Failed: Log record was created while developer logger was disabled.');
+  }
+  console.log('  [PASS] Public log requests are correctly ignored when toggle is OFF.');
+
+  // Toggle logger ON
+  await axios.post(`http://localhost:${PORT}/api/dev/admin/config`, { enabled: true }, configHeader);
+  devConfigRes = await axios.get(`http://localhost:${PORT}/api/dev/admin/config`, configHeader);
+  if (devConfigRes.data.enabled !== true) {
+    throw new Error('Test Step 15 Failed: Config enabled state did not update to true.');
+  }
+
+  // Dispatch public log request while enabled
+  logRes = await axios.post(`http://localhost:${PORT}/api/dev/logger`, {
+    test_key: 'test_value_enabled'
+  }, {
+    headers: { 'x-source': 'n8n_test_flow' }
+  });
+  if (logRes.data.success !== true) {
+    throw new Error('Test Step 15 Failed: Enabled logger returned error payload.');
+  }
+
+  dbCount = await mongoose.model('dev_api_logs').countDocuments({});
+  if (dbCount !== 1) {
+    throw new Error('Test Step 15 Failed: Log record was not created in MongoDB.');
+  }
+  
+  const savedLog = await mongoose.model('dev_api_logs').findOne({});
+  if (savedLog.source !== 'n8n_test_flow' || savedLog.payload.test_key !== 'test_value_enabled') {
+    throw new Error('Test Step 15 Failed: Log record payload attributes did not match request.');
+  }
+  console.log('  [PASS] Public log requests are successfully stored in MongoDB when toggle is ON.');
+
+  // Annotate log via authenticated admin routes
+  const notesRes = await axios.post(`http://localhost:${PORT}/api/dev/admin/logs/${savedLog._id}/notes`, {
+    notes: 'Approved integration specifications',
+    source: 'n8n_production',
+    purpose: 'Test logs purpose text'
+  }, configHeader);
+
+  if (notesRes.data.notes !== 'Approved integration specifications' || notesRes.data.source !== 'n8n_production') {
+    throw new Error('Test Step 15 Failed: Annotations were not successfully saved.');
+  }
+  console.log('  [PASS] Log annotations successfully updated via admin endpoints.');
+
   console.log('\n🎉 ALL STATE MACHINE & PREEMPTION FLOW INTEGRATION TESTS PASSED VERIFICATION 🎉\n');
 }
 

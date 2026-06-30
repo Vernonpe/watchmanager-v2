@@ -1351,6 +1351,12 @@ onMounted(() => {
   text-align: left;
 }
 
+.palette-item span {
+  color: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
 .palette-item:hover {
   background: var(--bg-surface-hover);
   border-color: var(--accent-cyan);

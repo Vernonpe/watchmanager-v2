@@ -173,6 +173,19 @@ const sysUsersSchema = new mongoose.Schema({
 });
 sysUsersSchema.index({ username: 1 });
 
+const devApiLogsSchema = new mongoose.Schema({
+  timestamp: { type: Date, default: Date.now },
+  method: { type: String, default: 'POST' },
+  path: { type: String, default: '/api/dev/logger' },
+  headers: { type: mongoose.Schema.Types.Mixed },
+  payload: { type: mongoose.Schema.Types.Mixed }, // Raw request body
+  notes: { type: String, default: '' }, // Developer notes about what the call was
+  source: { type: String, default: 'unknown' }, // Where it came from (e.g. n8n)
+  purpose: { type: String, default: '' }, // Purpose explanation
+  created_at: { type: Date, default: Date.now }
+});
+devApiLogsSchema.index({ timestamp: -1 });
+
 // Initialize Mongoose Models
 const SysTenants = mongoose.model('sys_tenants', sysTenantsSchema);
 const SysChannel360Credentials = mongoose.model('sys_channel360_credentials', sysChannel360CredentialsSchema);
@@ -186,6 +199,7 @@ const RuntimeAlarmTriggers = mongoose.model('runtime_alarm_triggers', runtimeAla
 const AuditWebhookStream = mongoose.model('audit_webhook_stream', auditWebhookStreamSchema);
 const AuditApiOutboundLogs = mongoose.model('audit_api_outbound_logs', auditApiOutboundLogsSchema);
 const AuditSystemExceptions = mongoose.model('audit_system_exceptions', auditSystemExceptionsSchema);
+const DevApiLogs = mongoose.model('dev_api_logs', devApiLogsSchema);
 
 module.exports = {
   SysTenants,
@@ -199,5 +213,6 @@ module.exports = {
   RuntimeAlarmTriggers,
   AuditWebhookStream,
   AuditApiOutboundLogs,
-  AuditSystemExceptions
+  AuditSystemExceptions,
+  DevApiLogs
 };

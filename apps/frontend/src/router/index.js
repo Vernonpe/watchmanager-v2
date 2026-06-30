@@ -7,6 +7,7 @@ import LogsConsole from '../views/LogsConsole.vue';
 import DashboardConsole from '../views/DashboardConsole.vue';
 import Login from '../views/Login.vue';
 import UserManagement from '../views/UserManagement.vue';
+import DevConsole from '../views/DevConsole.vue';
 
 // Configure axios interceptor to append JWT token
 axios.interceptors.request.use((config) => {
@@ -69,6 +70,11 @@ const routes = [
     path: '/users',
     name: 'Users',
     component: UserManagement
+  },
+  {
+    path: '/dev',
+    name: 'DevConsole',
+    component: DevConsole
   }
 ];
 
