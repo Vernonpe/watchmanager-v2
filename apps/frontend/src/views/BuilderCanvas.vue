@@ -168,6 +168,20 @@
                     <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
                   </svg>
                 </button>
+                <!-- Delete Button -->
+                <button 
+                  v-if="!isEditingName && journeyId" 
+                  class="delete-title-btn" 
+                  @click="deleteJourney" 
+                  title="Delete Blueprint"
+                >
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                  </svg>
+                </button>
                 <!-- Save Button -->
                 <button 
                   v-else 
@@ -855,6 +869,22 @@ const saveJourneyInline = async () => {
   isEditingName.value = false;
 };
 
+
+const deleteJourney = async () => {
+  if (!journeyId.value) return;
+  if (!confirm(`Are you sure you want to permanently delete the blueprint "${journeyName.value}"?`)) return;
+  
+  try {
+    const tenantHeader = { headers: { 'x-tenant-id': selectedTenantId.value } };
+    await axios.delete(`/api/admin/journeys/${journeyId.value}`, tenantHeader);
+    alert('Blueprint deleted successfully.');
+    await fetchJourneys();
+    createNewFreshJourney();
+  } catch (err) {
+    console.error(err);
+    alert('Error deleting blueprint: ' + err.message);
+  }
+};
 // Initial Vue Flow states
 const nodes = ref([]);
 const paletteNodes = ref([]);
@@ -1929,6 +1959,25 @@ onMounted(async () => {
 .edit-title-btn:hover {
   color: var(--accent-cyan);
   background: rgba(0, 220, 200, 0.08);
+}
+
+.delete-title-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 4px;
+  transition: all 0.2s ease;
+}
+
+.delete-title-btn:hover {
+  color: rgba(255, 99, 132, 1);
+  background: rgba(255, 99, 132, 0.1);
 }
 
 .save-title-btn {
