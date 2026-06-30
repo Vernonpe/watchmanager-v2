@@ -495,4 +495,41 @@ router.post('/users/:username/status', async (req, res) => {
   }
 });
 
+/**
+ * Session State Observability (Live Debugger)
+ */
+router.get('/sessions/active', async (req, res) => {
+  try {
+    const activeSessions = await mongoose.model('runtime_whatsapp_sessions').find({
+      tenant_id: req.tenant_id,
+      expires_at: { $gt: new Date() } // Only active, non-expired sessions
+    }).sort({ last_user_message_at: -1 });
+    
+    // Transform Map to Object for JSON transmission
+    const serializedSessions = activeSessions.map(session => {
+      const doc = session.toObject();
+      if (session.collected_data && session.collected_data instanceof Map) {
+        doc.collected_data = Object.fromEntries(session.collected_data);
+      }
+      return doc;
+    });
+
+    res.status(200).json(serializedSessions);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/sessions/:mobile', async (req, res) => {
+  try {
+    await mongoose.model('runtime_whatsapp_sessions').deleteMany({
+      tenant_id: req.tenant_id,
+      mobile: req.params.mobile
+    });
+    res.status(200).json({ success: true, message: 'Session forcefully terminated' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

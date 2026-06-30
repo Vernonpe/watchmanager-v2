@@ -75,6 +75,11 @@ const routes = [
     path: '/dev',
     name: 'DevConsole',
     component: DevConsole
+  },
+  {
+    path: '/sessions',
+    name: 'ActiveSessions',
+    component: () => import('../views/ActiveSessions.vue')
   }
 ];
 

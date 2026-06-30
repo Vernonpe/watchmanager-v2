@@ -93,6 +93,13 @@ const handleLogout = () => {
           <span v-if="!isCollapsed" class="nav-label">Operations Console</span>
         </router-link>
 
+        <router-link to="/sessions" class="nav-item">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+          </svg>
+          <span v-if="!isCollapsed" class="nav-label">Active Sessions</span>
+        </router-link>
+
         <!-- User Management Link -->
         <router-link to="/users" class="nav-item">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

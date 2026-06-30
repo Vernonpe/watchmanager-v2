@@ -41,6 +41,14 @@
 
         <!-- Global Actions -->
         <div class="workspace-actions">
+          <div class="debug-toggle-wrapper">
+            <span class="debug-icon" :class="{ pulse: liveDebugMode }">📡</span>
+            <span class="debug-label">Live Debug</span>
+            <label class="toggle-switch">
+              <input type="checkbox" v-model="liveDebugMode" @change="toggleLiveDebug" />
+              <span class="slider round"></span>
+            </label>
+          </div>
           <button class="glass-btn glass-btn-secondary" @click="addDemoFlow">Load Demo</button>
           <button class="glass-btn glass-btn-secondary" @click="createNewFreshJourney">Clear Canvas</button>
           <button class="glass-btn glass-btn-primary" @click="saveJourney">
@@ -121,6 +129,14 @@
           <h3>Node Palette</h3>
           <p class="description">Click to insert a new functional block onto the canvas:</p>
           <div class="palette-grid">
+            <button class="palette-item" @click="addNode('trigger_webhook')">
+              <div class="palette-badge trigger-badge">Webhook</div>
+              <span>Entry Trigger</span>
+            </button>
+            <button class="palette-item" @click="addNode('trigger_menu')">
+              <div class="palette-badge trigger-badge">Menu</div>
+              <span>Menu Trigger</span>
+            </button>
             <button class="palette-item" @click="addNode('prompt_text')">
               <div class="palette-badge text-badge">Text</div>
               <span>Prompt Text</span>
@@ -169,8 +185,14 @@
             fit-view-on-init
             class="flow-workspace"
             @node-click="onNodeClick"
+            @edge-click="onEdgeClick"
+            @pane-click="onPaneClick"
             @connect="onConnect"
           >
+            <template #edge-custom="props">
+              <CustomEdge v-bind="props" :is-selected="selectedEdgeId === props.id" @remove-edge="removeEdgeById" />
+            </template>
+
             <Background pattern-color="#aaa" gap="16" />
             <Controls />
 
@@ -267,21 +289,127 @@
                 <span>Auto Layout</span>
               </button>
             </div>
+
+            <!-- Custom Node Templates -->
+            <template #node-trigger_webhook="props">
+              <div class="custom-node trigger-node">
+                <div class="node-header"><span class="icon">⚡</span> Webhook Entry</div>
+                <div class="node-custom-label" v-if="(nodes.find(n => n.id === props.id)?.label)">{{ nodes.find(n => n.id === props.id)?.label }}</div>
+                <div class="node-body"><i>Keyword:</i> {{ (nodes.find(n => n.id === props.id)?.config)?.keyword || '*' }}</div>
+                <Handle type="source" :position="Position.Right" id="success" class="custom-handle" />
+              </div>
+            </template>
+
+            <template #node-trigger_menu="props">
+              <div class="custom-node trigger-node">
+                <div class="node-header"><span class="icon">⚡</span> Menu Entry</div>
+                <div class="node-custom-label" v-if="(nodes.find(n => n.id === props.id)?.label)">{{ nodes.find(n => n.id === props.id)?.label }}</div>
+                <div class="node-body"><i>Option:</i> {{ (nodes.find(n => n.id === props.id)?.config)?.mapped_option || 'N/A' }}</div>
+                <Handle type="source" :position="Position.Right" id="success" class="custom-handle" />
+              </div>
+            </template>
+
+            <template #node-prompt_text="props">
+              <div class="custom-node text-node">
+                <div class="node-header"><span class="icon">💬</span> Prompt Text</div>
+                <div class="node-custom-label" v-if="(nodes.find(n => n.id === props.id)?.label)">{{ nodes.find(n => n.id === props.id)?.label }}</div>
+                <div class="node-body"><i>Var:</i> {{ (nodes.find(n => n.id === props.id)?.config)?.input_variable }}</div>
+                <Handle type="target" :position="Position.Left" id="default" class="custom-handle" />
+                <Handle type="source" :position="Position.Right" id="success" class="custom-handle" />
+              </div>
+            </template>
+
+            <template #node-prompt_buttons="props">
+              <div class="custom-node buttons-node">
+                <div class="node-header"><span class="icon">🔘</span> Prompt Buttons</div>
+                <div class="node-custom-label" v-if="(nodes.find(n => n.id === props.id)?.label)">{{ nodes.find(n => n.id === props.id)?.label }}</div>
+                <div class="node-body"><i>Var:</i> {{ (nodes.find(n => n.id === props.id)?.config)?.input_variable }}</div>
+                <Handle type="target" :position="Position.Left" id="default" class="custom-handle" />
+                <!-- Dynamic Source Handles for each button -->
+                <Handle 
+                  v-for="(btn, idx) in (nodes.find(n => n.id === props.id)?.config)?.buttons || []" 
+                  :key="btn.id" 
+                  type="source" 
+                  :position="Position.Right" 
+                  :id="btn.id" 
+                  class="custom-handle"
+                  :style="{ top: (35 + (idx * 20)) + 'px' }" 
+                />
+              </div>
+            </template>
+
+            <template #node-prompt_list="props">
+              <div class="custom-node list-node">
+                <div class="node-header"><span class="icon">📋</span> Prompt List</div>
+                <div class="node-custom-label" v-if="(nodes.find(n => n.id === props.id)?.label)">{{ nodes.find(n => n.id === props.id)?.label }}</div>
+                <div class="node-body"><i>Var:</i> {{ (nodes.find(n => n.id === props.id)?.config)?.input_variable }}</div>
+                <Handle type="target" :position="Position.Left" id="default" class="custom-handle" />
+                <!-- Dynamic Source Handles for each list row -->
+                <Handle 
+                  v-for="(row, idx) in ((nodes.find(n => n.id === props.id)?.config)?.sections?.[0]?.rows || [])" 
+                  :key="row.id" 
+                  type="source" 
+                  :position="Position.Right" 
+                  :id="row.id" 
+                  class="custom-handle"
+                  :style="{ top: (35 + (idx * 15)) + 'px' }" 
+                />
+              </div>
+            </template>
+
+            <template #node-action_http="props">
+              <div class="custom-node http-node">
+                <div class="node-header"><span class="icon">🌐</span> API Request</div>
+                <div class="node-custom-label" v-if="(nodes.find(n => n.id === props.id)?.label)">{{ nodes.find(n => n.id === props.id)?.label }}</div>
+                <div class="node-body">{{ (nodes.find(n => n.id === props.id)?.config)?.method || 'POST' }} Req</div>
+                <Handle type="target" :position="Position.Left" id="default" class="custom-handle" />
+                <Handle type="source" :position="Position.Right" id="success" class="custom-handle" />
+                <Handle type="source" :position="Position.Right" id="failure" class="custom-handle handle-error" style="top: 70%;" />
+              </div>
+            </template>
+
+            <template #node-action_db="props">
+              <div class="custom-node db-node">
+                <div class="node-header"><span class="icon">🗄️</span> DB Operation</div>
+                <div class="node-custom-label" v-if="(nodes.find(n => n.id === props.id)?.label)">{{ nodes.find(n => n.id === props.id)?.label }}</div>
+                <div class="node-body"><i>{{ (nodes.find(n => n.id === props.id)?.config)?.operation || 'op' }}</i></div>
+                <Handle type="target" :position="Position.Left" id="default" class="custom-handle" />
+                <Handle type="source" :position="Position.Right" id="success" class="custom-handle" />
+                <Handle type="source" :position="Position.Right" id="failure" class="custom-handle handle-error" style="top: 70%;" />
+              </div>
+            </template>
+
+            <template #node-condition_split="props">
+              <div class="custom-node condition-node">
+                <div class="node-header"><span class="icon">🔀</span> Condition Split</div>
+                <div class="node-custom-label" v-if="(nodes.find(n => n.id === props.id)?.label)">{{ nodes.find(n => n.id === props.id)?.label }}</div>
+                <div class="node-body">{{ (nodes.find(n => n.id === props.id)?.config)?.variable }}</div>
+                <Handle type="target" :position="Position.Left" id="default" class="custom-handle" />
+                <Handle type="source" :position="Position.Right" id="true" class="custom-handle handle-success" style="top: 30%;" />
+                <Handle type="source" :position="Position.Right" id="false" class="custom-handle handle-error" style="top: 70%;" />
+              </div>
+            </template>
+
           </VueFlow>
         </div>
 
         <!-- Properties Drawer Panel -->
         <transition name="slide">
-          <aside v-if="selectedNode" class="properties-drawer glass-panel">
+          <aside v-if="selectedNode || selectedEdgeId" class="properties-drawer glass-panel">
             <div class="drawer-header">
-              <h3>Configure Node</h3>
-              <button class="close-btn" @click="selectedNode = null">&times;</button>
+              <h3>{{ selectedNode ? 'Configure Node' : 'Configure Connection' }}</h3>
+              <button class="close-btn" @click="selectedNode = null; selectedEdgeId = null">&times;</button>
             </div>
 
-            <div class="drawer-content">
+            <div class="drawer-content" v-if="selectedNode">
               <div class="form-group">
                 <label>Node ID</label>
                 <input v-model="selectedNode.id" type="text" class="glass-input" disabled />
+              </div>
+
+              <div class="form-group">
+                <label>Node Display Name (Optional)</label>
+                <input v-model="selectedNode.label" type="text" class="glass-input" placeholder="e.g. Welcome Message" />
               </div>
 
               <div class="form-group">
@@ -291,11 +419,40 @@
 
               <hr class="divider" />
 
+              <!-- Trigger Webhook configuration -->
+              <div v-if="selectedNode.type === 'trigger_webhook'">
+                <div class="form-group">
+                  <label>Trigger Keyword</label>
+                  <input v-model="selectedNode.config.keyword" type="text" class="glass-input" placeholder="e.g. service" />
+                </div>
+                <div class="form-group checkbox-group">
+                  <label>
+                    <input v-model="selectedNode.config.catch_all" type="checkbox" />
+                    Catch-All (Trigger on any unhandled message)
+                  </label>
+                </div>
+              </div>
+
+              <!-- Trigger Menu configuration -->
+              <div v-if="selectedNode.type === 'trigger_menu'">
+                <div class="form-group">
+                  <label>Mapped Option Value</label>
+                  <input v-model="selectedNode.config.mapped_option" type="text" class="glass-input" placeholder="e.g. 1" />
+                  <span class="help-text">The value users select in the Global Main Menu to trigger this flow.</span>
+                </div>
+              </div>
+
               <!-- 1. Text configuration fields -->
               <div v-if="selectedNode.type === 'prompt_text'">
                 <div class="form-group">
                   <label>Message Content</label>
                   <textarea v-model="selectedNode.config.message" class="glass-input" rows="4" placeholder="Enter message text..."></textarea>
+                  <div class="variable-picker" v-if="availableVariables.length > 0">
+                    <span class="picker-label">Insert Token:</span>
+                    <button v-for="v in availableVariables" :key="v" class="var-pill" @click="insertVariable(v, 'message')" title="Insert variable">
+                      {{ v }}
+                    </button>
+                  </div>
                 </div>
                 <div class="form-group row-align">
                   <label class="checkbox-container">
@@ -324,19 +481,43 @@
                 <div class="form-group">
                   <label>Message Content</label>
                   <textarea v-model="selectedNode.config.message" class="glass-input" rows="3" placeholder="Enter message text..."></textarea>
+                  <div class="variable-picker" v-if="availableVariables.length > 0">
+                    <span class="picker-label">Insert Token:</span>
+                    <button v-for="v in availableVariables" :key="v" class="var-pill" @click="insertVariable(v, 'message')" title="Insert variable">
+                      {{ v }}
+                    </button>
+                  </div>
                 </div>
                 <div class="form-group">
                   <label>Save Input Variable Name</label>
                   <input v-model="selectedNode.config.input_variable" type="text" class="glass-input" placeholder="e.g. selection" />
                 </div>
                 <div class="buttons-builder-list">
-                  <label>Quick Reply Buttons (Max 3)</label>
-                  <div v-for="(btn, index) in selectedNode.config.buttons" :key="index" class="button-row">
-                    <input v-model="btn.id" type="text" class="glass-input sub-input" placeholder="Button ID" />
-                    <input v-model="btn.title" type="text" class="glass-input sub-input" placeholder="Button Title" />
-                    <button class="delete-sub-btn" @click="selectedNode.config.buttons.splice(index, 1)">&times;</button>
+                  <label style="margin-bottom: 12px; display: block;">Quick Reply Buttons (Max 3)</label>
+                  
+                  <div v-for="(btn, index) in selectedNode.config.buttons" :key="index" class="button-group-card">
+                    <div class="button-group-header">
+                      <span>Button {{ index + 1 }}</span>
+                      <button class="delete-sub-btn" @click="selectedNode.config.buttons.splice(index, 1)" title="Delete Button">
+                        <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+                          <polyline points="3 6 5 6 21 6"></polyline>
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                      </button>
+                    </div>
+                    
+                    <div class="form-group-inline">
+                      <label>ID (System):</label>
+                      <input v-model="btn.id" type="text" class="glass-input sub-input" placeholder="e.g. opt_yes" />
+                    </div>
+                    
+                    <div class="form-group-inline" style="margin-top: 8px;">
+                      <label>Title (Max 20):</label>
+                      <input v-model="btn.title" type="text" class="glass-input sub-input" placeholder="e.g. Yes" maxlength="20" />
+                    </div>
                   </div>
-                  <button v-if="selectedNode.config.buttons.length < 3" class="glass-btn glass-btn-secondary inline-btn" @click="selectedNode.config.buttons.push({ id: '', title: '' })">+ Add Button</button>
+                  
+                  <button v-if="selectedNode.config.buttons.length < 3" class="glass-btn glass-btn-secondary inline-btn" style="margin-top: 8px;" @click="selectedNode.config.buttons.push({ id: '', title: '' })">+ Add Button</button>
                 </div>
               </div>
 
@@ -345,14 +526,20 @@
                 <div class="form-group">
                   <label>Main Body Description</label>
                   <textarea v-model="selectedNode.config.description" class="glass-input" rows="3" placeholder="Enter list description..."></textarea>
+                  <div class="variable-picker" v-if="availableVariables.length > 0">
+                    <span class="picker-label">Insert Token:</span>
+                    <button v-for="v in availableVariables" :key="v" class="var-pill" @click="insertVariable(v, 'description')" title="Insert variable">
+                      {{ v }}
+                    </button>
+                  </div>
                 </div>
                 <div class="form-group">
-                  <label>Header Title</label>
-                  <input v-model="selectedNode.config.title" type="text" class="glass-input" placeholder="e.g. Main Menu" />
+                  <label>Header Title (Max 24 chars)</label>
+                  <input v-model="selectedNode.config.title" type="text" class="glass-input" placeholder="e.g. Main Menu" maxlength="24" />
                 </div>
                 <div class="form-group">
-                  <label>Button Text Label</label>
-                  <input v-model="selectedNode.config.button_text" type="text" class="glass-input" placeholder="e.g. View Options" />
+                  <label>Global Button Text (Max 20 chars)</label>
+                  <input v-model="selectedNode.config.button_text" type="text" class="glass-input" placeholder="e.g. View Options" maxlength="20" />
                 </div>
                 <div class="form-group">
                   <label>Save Input Variable Name</label>
@@ -360,13 +547,36 @@
                 </div>
 
                 <div class="list-sections-builder">
-                  <label>List Sections & Rows (Max 10)</label>
-                  <div v-for="(row, index) in selectedNode.config.sections[0].rows" :key="index" class="list-row-entry">
-                    <input v-model="row.id" type="text" class="glass-input sub-input" placeholder="Row Choice ID" />
-                    <input v-model="row.title" type="text" class="glass-input sub-input" placeholder="Row Title" />
-                    <input v-model="row.description" type="text" class="glass-input sub-input" placeholder="Description detail" />
+                  <label style="margin-bottom: 12px; display: block;">List Sections & Rows (Max 10)</label>
+                  
+                  <div v-for="(row, index) in selectedNode.config.sections[0].rows" :key="index" class="button-group-card">
+                    <div class="button-group-header">
+                      <span>Row {{ index + 1 }}</span>
+                      <button class="delete-sub-btn" @click="selectedNode.config.sections[0].rows.splice(index, 1)" title="Delete Row">
+                        <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+                          <polyline points="3 6 5 6 21 6"></polyline>
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                      </button>
+                    </div>
+                    
+                    <div class="form-group-inline">
+                      <label>ID (System):</label>
+                      <input v-model="row.id" type="text" class="glass-input sub-input" placeholder="e.g. row_1" maxlength="200" />
+                    </div>
+                    
+                    <div class="form-group-inline" style="margin-top: 8px;">
+                      <label>Title (Max 24):</label>
+                      <input v-model="row.title" type="text" class="glass-input sub-input" placeholder="e.g. Support" maxlength="24" />
+                    </div>
+                    
+                    <div class="form-group-inline" style="margin-top: 8px;">
+                      <label>Desc (Max 72):</label>
+                      <input v-model="row.description" type="text" class="glass-input sub-input" placeholder="e.g. Technical support and help" maxlength="72" />
+                    </div>
                   </div>
-                  <button v-if="selectedNode.config.sections[0].rows.length < 10" class="glass-btn glass-btn-secondary inline-btn" @click="selectedNode.config.sections[0].rows.push({ id: '', title: '', description: '' })">+ Add Menu Row</button>
+                  
+                  <button v-if="selectedNode.config.sections[0].rows.length < 10" class="glass-btn glass-btn-secondary inline-btn" style="margin-top: 8px;" @click="selectedNode.config.sections[0].rows.push({ id: '', title: '', description: '' })">+ Add Menu Row</button>
                 </div>
               </div>
 
@@ -483,6 +693,22 @@
                 <button class="glass-btn glass-btn-danger" @click="deleteSelectedNode">Delete Node</button>
               </div>
             </div>
+            
+            <div class="drawer-content" v-else-if="selectedEdgeId">
+              <div class="form-group">
+                <label>Connection ID</label>
+                <input :value="selectedEdgeId" type="text" class="glass-input" disabled />
+              </div>
+              
+              <div class="form-group" style="margin-top: 24px;">
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">
+                  Connections determine the logical flow path of the user journey. Removing this connection will break the flow between the source and target nodes.
+                </p>
+                <button class="glass-btn glass-btn-danger" style="width: 100%;" @click="removeEdgeById(selectedEdgeId); selectedEdgeId = null;">
+                  🗑️ Delete Connection
+                </button>
+              </div>
+            </div>
           </aside>
         </transition>
       </template>
@@ -597,11 +823,12 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, computed } from 'vue';
-import { VueFlow, useVueFlow } from '@vue-flow/core';
+import { ref, watch, onMounted, onUnmounted, computed } from 'vue';
+import { VueFlow, useVueFlow, Handle, Position } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
 import { Controls } from '@vue-flow/controls';
 import axios from 'axios';
+import CustomEdge from '../components/CustomEdge.vue';
 
 const { zoomIn, zoomOut, fitView } = useVueFlow();
 
@@ -614,6 +841,48 @@ const journeys = ref([]);
 const selectedTenantId = ref('tenant_watchmanager_prod_01');
 const selectedJourneyId = ref('');
 const editorMode = ref('canvas');
+
+// Live Debug State
+const liveDebugMode = ref(false);
+const liveSessions = ref([]);
+let debugPollInterval = null;
+
+const fetchLiveSessions = async () => {
+  try {
+    const res = await axios.get('/api/admin/sessions/active', {
+      headers: { 'x-tenant-id': selectedTenantId.value }
+    });
+    // Filter to only this journey
+    liveSessions.value = res.data.filter(s => s.active_journey_id === journeyId.value);
+    
+    // Apply visual classes to nodes natively supported by VueFlow
+    nodes.value.forEach(node => {
+      const activeSessionsCount = liveSessions.value.filter(s => s.current_node_id === node.id).length;
+      if (activeSessionsCount > 0) {
+        node.class = 'node-live-pulse';
+      } else {
+        node.class = '';
+      }
+    });
+  } catch (err) {
+    console.error('Failed fetching live debug sessions:', err);
+  }
+};
+
+const toggleLiveDebug = async () => {
+  if (liveDebugMode.value) {
+    await fetchLiveSessions();
+    debugPollInterval = setInterval(fetchLiveSessions, 3000);
+  } else {
+    clearInterval(debugPollInterval);
+    liveSessions.value = [];
+    nodes.value.forEach(node => node.class = '');
+  }
+};
+
+onUnmounted(() => {
+  if (debugPollInterval) clearInterval(debugPollInterval);
+});
 
 const isCurrentTenantSuspended = computed(() => {
   const t = tenants.value.find(x => x.tenant_id === selectedTenantId.value);
@@ -645,6 +914,7 @@ const nodes = ref([]);
 const edges = ref([]);
 
 const selectedNode = ref(null);
+const selectedEdgeId = ref(null);
 
 // JSON bindings inside properties panel
 const headersJson = ref('{}');
@@ -686,6 +956,23 @@ watch(selectedNode, (node) => {
     }
   }
 });
+
+// Phase 3: Interactive Variable Token Insertion
+const availableVariables = computed(() => {
+  const vars = new Set();
+  nodes.value.forEach(n => {
+    if (n.config && n.config.input_variable) {
+      vars.add(n.config.input_variable);
+    }
+  });
+  return Array.from(vars).filter(Boolean);
+});
+
+const insertVariable = (varName, fieldName) => {
+  if (!selectedNode.value) return;
+  const currentVal = selectedNode.value.config[fieldName] || '';
+  selectedNode.value.config[fieldName] = currentVal + `{{${varName}}}`;
+};
 
 // Fetch tenant accounts
 const fetchTenants = async () => {
@@ -760,6 +1047,7 @@ const loadSelectedJourney = () => {
     // Map database edges into Vue Flow edges
     edges.value = (j.edges || []).map(e => ({
       id: e.id || `e-${e.source}-${e.sourceHandle || e.source_handle || 'success'}-${e.target}`,
+      type: 'custom',
       source: e.source,
       sourceHandle: e.sourceHandle || e.source_handle || 'success',
       target: e.target,
@@ -793,6 +1081,17 @@ const createNewFreshJourney = () => {
 // Event hook when node is clicked in canvas
 const onNodeClick = (event) => {
   selectedNode.value = event.node;
+  selectedEdgeId.value = null;
+};
+
+const onEdgeClick = (event) => {
+  selectedEdgeId.value = event.edge.id;
+  selectedNode.value = null;
+};
+
+const onPaneClick = () => {
+  selectedNode.value = null;
+  selectedEdgeId.value = null;
 };
 
 // Vue Flow drag connection edges creation handler
@@ -800,6 +1099,7 @@ const onConnect = (connection) => {
   // connection is an object containing { source, target, sourceHandle, targetHandle }
   const newEdge = {
     id: `e-${connection.source}-${connection.sourceHandle || 'success'}-${connection.target}`,
+    type: 'custom',
     source: connection.source,
     sourceHandle: connection.sourceHandle || 'success',
     target: connection.target,
@@ -820,7 +1120,11 @@ const addNode = (type) => {
   const id = `node_${type}_${nodeCount}`;
   
   let config = {};
-  if (type === 'prompt_text') {
+  if (type === 'trigger_webhook') {
+    config = { keyword: 'service', match_type: 'exact', catch_all: false };
+  } else if (type === 'trigger_menu') {
+    config = { mapped_option: '1', description: 'Triggers when menu option 1 is selected' };
+  } else if (type === 'prompt_text') {
     config = { message: 'Text question goes here...', await_response: true, input_variable: `var_${nodeCount}`, validation_regex: '.*', validation_error_message: 'Invalid input' };
   } else if (type === 'prompt_buttons') {
     config = { message: 'Select status:', input_variable: `var_${nodeCount}`, buttons: [{ id: 'yes', title: 'Yes' }, { id: 'no', title: 'No' }] };
@@ -852,6 +1156,10 @@ const deleteSelectedNode = () => {
     edges.value = edges.value.filter(e => e.source !== selectedNode.value.id && e.target !== selectedNode.value.id);
     selectedNode.value = null;
   }
+};
+
+const removeEdgeById = (edgeId) => {
+  edges.value = edges.value.filter(e => e.id !== edgeId);
 };
 
 // Add Demo checklist blueprint
@@ -931,11 +1239,11 @@ const addDemoFlow = () => {
   ];
 
   edges.value = [
-    { id: "e1", source: "node_start", sourceHandle: "success", target: "node_address" },
-    { id: "e2", source: "node_address", sourceHandle: "success", target: "node_fault_menu" },
-    { id: "e3", source: "node_fault_menu", sourceHandle: "flt_bt_001", target: "node_api_dispatch" },
-    { id: "e4", source: "node_fault_menu", sourceHandle: "flt_sn_002", target: "node_api_dispatch" },
-    { id: "e5", source: "node_api_dispatch", sourceHandle: "success", target: "node_end" }
+    { id: "e1", type: "custom", source: "node_start", sourceHandle: "success", target: "node_address" },
+    { id: "e2", type: "custom", source: "node_address", sourceHandle: "success", target: "node_fault_menu" },
+    { id: "e3", type: "custom", source: "node_fault_menu", sourceHandle: "flt_bt_001", target: "node_api_dispatch" },
+    { id: "e4", type: "custom", source: "node_fault_menu", sourceHandle: "flt_sn_002", target: "node_api_dispatch" },
+    { id: "e5", type: "custom", source: "node_api_dispatch", sourceHandle: "success", target: "node_end" }
   ];
   
   journeyName.value = 'WatchManager Technical Assistance';
@@ -1373,6 +1681,7 @@ onMounted(() => {
   text-align: center;
 }
 
+.trigger-badge { background: rgba(255, 255, 255, 0.15); color: #ffffff; }
 .text-badge { background: rgba(50, 150, 255, 0.15); color: var(--accent-blue); }
 .buttons-badge { background: rgba(200, 100, 255, 0.15); color: var(--accent-purple); }
 .list-badge { background: rgba(0, 220, 200, 0.15); color: var(--accent-cyan); }
@@ -1488,6 +1797,8 @@ onMounted(() => {
   align-self: flex-start;
 }
 
+.trigger_webhook-color { background: rgba(255, 255, 255, 0.15); color: #ffffff; }
+.trigger_menu-color { background: rgba(255, 255, 255, 0.15); color: #ffffff; }
 .prompt_text-color { background: rgba(50, 150, 255, 0.15); color: var(--accent-blue); }
 .prompt_buttons-color { background: rgba(200, 100, 255, 0.15); color: var(--accent-purple); }
 .prompt_list-color { background: rgba(0, 220, 200, 0.15); color: var(--accent-cyan); }
@@ -1778,6 +2089,43 @@ input:checked + .switch-slider:before {
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--accent-cyan);
+}
+
+.form-group-inline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.form-group-inline label {
+  min-width: 90px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-bottom: 0;
+}
+.button-group-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  transition: border-color 0.2s;
+}
+.button-group-card:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+.button-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-light);
+}
+.buttons-builder-list {
+  display: flex;
+  flex-direction: column;
 }
 
 .menu-items-list {
@@ -2297,5 +2645,139 @@ input:checked + .switch-slider:before {
   color: var(--text-muted) !important;
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+/* --- VueFlow Custom Node Styles --- */
+.custom-node {
+  background: var(--surface-light);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  min-width: 150px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  overflow: visible;
+  backdrop-filter: blur(8px);
+}
+.custom-node:hover {
+  border-color: var(--accent-cyan);
+}
+.node-header {
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.05);
+  border-bottom: 1px solid var(--border-light);
+  font-weight: 600;
+  font-size: 0.85rem;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.node-custom-label {
+  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+  border-bottom: 1px solid var(--border-light);
+}
+.node-body {
+  padding: 10px 12px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.trigger-node .node-header { border-bottom-color: rgba(255,255,255,0.2); }
+.text-node .node-header { color: var(--accent-blue); }
+.buttons-node .node-header { color: var(--accent-purple); }
+.list-node .node-header { color: var(--accent-cyan); }
+.http-node .node-header { color: var(--accent-orange); }
+.db-node .node-header { color: var(--accent-green); }
+.condition-node .node-header { color: var(--accent-red); }
+
+/* --- Dynamic Handles --- */
+.custom-handle {
+  width: 10px;
+  height: 10px;
+  background: var(--accent-cyan);
+  border: 2px solid var(--surface-dark);
+}
+.custom-handle:hover {
+  background: #fff;
+  transform: scale(1.2);
+}
+.handle-success { background: var(--accent-green); }
+.handle-error { background: var(--accent-red); }
+
+/* --- Live Debug Mode --- */
+.debug-toggle-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin-right: 16px;
+}
+.debug-icon {
+  font-size: 1.1rem;
+  opacity: 0.5;
+  transition: all 0.3s ease;
+}
+.debug-icon.pulse {
+  opacity: 1;
+  animation: radar-pulse 1.5s infinite;
+}
+@keyframes radar-pulse {
+  0% { transform: scale(1); opacity: 1; text-shadow: 0 0 10px rgba(165,180,252,0.8); }
+  50% { transform: scale(1.1); opacity: 0.8; text-shadow: 0 0 20px rgba(165,180,252,1); }
+  100% { transform: scale(1); opacity: 1; text-shadow: 0 0 10px rgba(165,180,252,0.8); }
+}
+
+.node-live-pulse {
+  animation: pulse-glow 2s infinite !important;
+  border-color: #a5b4fc !important;
+}
+
+@keyframes pulse-glow {
+  0% { box-shadow: 0 0 0 0 rgba(165, 180, 252, 0.7); }
+  70% { box-shadow: 0 0 0 15px rgba(165, 180, 252, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(165, 180, 252, 0); }
+}
+/* --- Variable Picker (Phase 3) --- */
+.variable-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.picker-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-right: 4px;
+}
+
+.var-pill {
+  background: rgba(165, 180, 252, 0.15);
+  color: #a5b4fc;
+  border: 1px solid rgba(165, 180, 252, 0.3);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-family: 'JetBrains Mono', monospace;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.var-pill:hover {
+  background: rgba(165, 180, 252, 0.3);
+  color: #fff;
+  transform: translateY(-1px);
 }
 </style>

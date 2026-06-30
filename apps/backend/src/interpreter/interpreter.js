@@ -32,14 +32,29 @@ async function runInterpreterLoop(session, webhookPayload, credentials) {
 
         if (targetJourney && targetJourney.nodes && targetJourney.nodes.length > 0) {
           console.log(`[Interpreter Menu] Transitioning user ${session.mobile} to journey: ${targetJourney.journey_id}`);
+          
+          let startNodeId = targetJourney.nodes[0].id;
+          const triggerNode = targetJourney.nodes.find(n => n.type === 'trigger_menu' && String(n.config.mapped_option) === String(matchedItem.index));
+          if (triggerNode) {
+            const outEdge = targetJourney.edges.find(e => e.source === triggerNode.id);
+            if (outEdge) startNodeId = outEdge.target;
+          } else {
+            // Fallback for journeys without explicit menu triggers
+            const genericMenuTrigger = targetJourney.nodes.find(n => n.type === 'trigger_menu');
+            if (genericMenuTrigger) {
+              const outEdge = targetJourney.edges.find(e => e.source === genericMenuTrigger.id);
+              if (outEdge) startNodeId = outEdge.target;
+            }
+          }
+
           session.active_journey_id = targetJourney.journey_id;
-          session.current_node_id = targetJourney.nodes[0].id;
+          session.current_node_id = startNodeId;
           session.is_at_main_menu = false;
           session.collected_data.clear();
           session.state_history = [];
           await session.save();
 
-          const firstNode = targetJourney.nodes[0];
+          const firstNode = targetJourney.nodes.find(n => n.id === session.current_node_id);
           await sendNodeWhatsAppPrompt(credentials, session.mobile, firstNode, session);
           return;
         } else {
@@ -105,10 +120,16 @@ async function runInterpreterLoop(session, webhookPayload, credentials) {
 
   const normalizedInput = userMessageText.toLowerCase().trim();
 
-  // exit keyword
   if (exitKeywords.includes(normalizedInput)) {
     // Reset session back to start of the current journey
-    session.current_node_id = journey.nodes[0].id;
+    let startNodeId = journey.nodes[0].id;
+    const triggerNode = journey.nodes.find(n => n.type === 'trigger_webhook');
+    if (triggerNode) {
+      const outEdge = journey.edges.find(e => e.source === triggerNode.id);
+      if (outEdge) startNodeId = outEdge.target;
+    }
+
+    session.current_node_id = startNodeId;
     session.collected_data.clear();
     session.state_history = [];
     await session.save();

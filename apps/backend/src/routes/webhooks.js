@@ -27,23 +27,36 @@ async function executeInboundMessage(credentials, payload, messageId, mobile) {
 
     if (!session) {
       console.log(`[Webhook Session] No session found. Resolving journey for trigger: "${userMessageText}"`);
-      // Find journey matching ingress trigger keyword exactly
+      // Find journey matching ingress trigger keyword exactly or via a webhook trigger node
       let targetJourney = await mongoose.model('builder_journeys').findOne({
         tenant_id,
         is_active: true,
-        ingress_trigger_keyword: userMessageText
+        $or: [
+          { ingress_trigger_keyword: userMessageText },
+          { nodes: { $elemMatch: { type: 'trigger_webhook', 'config.keyword': userMessageText } } }
+        ]
       });
+
+      // Helper to resolve start node from a trigger node
+      const resolveStartNode = (journey, triggerNode) => {
+        if (!triggerNode) return journey.nodes[0].id;
+        const outEdge = journey.edges.find(e => e.source === triggerNode.id);
+        return outEdge ? outEdge.target : triggerNode.id;
+      };
 
       if (targetJourney) {
         console.log(`[Webhook Session] Resolved journey by trigger keyword: ${targetJourney.journey_id}`);
         const minutes = targetJourney.session_timeout_minutes || 1440;
         const expiresAt = new Date(Date.now() + minutes * 60 * 1000);
 
+        const triggerNode = targetJourney.nodes.find(n => n.type === 'trigger_webhook' && n.config.keyword === userMessageText);
+        const startNodeId = resolveStartNode(targetJourney, triggerNode);
+
         session = await mongoose.model('runtime_whatsapp_sessions').create({
           tenant_id,
           mobile,
           active_journey_id: targetJourney.journey_id,
-          current_node_id: targetJourney.nodes[0].id,
+          current_node_id: startNodeId,
           priority: targetJourney.priority || 1,
           processed_message_ids: [],
           last_user_message_at: new Date(),
@@ -76,11 +89,14 @@ async function executeInboundMessage(credentials, payload, messageId, mobile) {
           
           await sendMainMenuPrompt(credentials, mobile, menu, session);
         } else {
-          // Fallback to any active journey with a non-empty ingress trigger (default behavior)
+          // Fallback to any active journey with a catch-all trigger or non-empty legacy ingress trigger
           const fallbackJourney = await mongoose.model('builder_journeys').findOne({
             tenant_id,
             is_active: true,
-            ingress_trigger_keyword: { $exists: true, $ne: "" }
+            $or: [
+              { ingress_trigger_keyword: { $exists: true, $ne: "" } },
+              { nodes: { $elemMatch: { type: 'trigger_webhook', 'config.catch_all': true } } }
+            ]
           });
 
           if (!fallbackJourney) {
@@ -92,11 +108,14 @@ async function executeInboundMessage(credentials, payload, messageId, mobile) {
           const minutes = fallbackJourney.session_timeout_minutes || 1440;
           const expiresAt = new Date(Date.now() + minutes * 60 * 1000);
 
+          const triggerNode = fallbackJourney.nodes.find(n => n.type === 'trigger_webhook' && n.config.catch_all === true);
+          const startNodeId = resolveStartNode(fallbackJourney, triggerNode);
+
           session = await mongoose.model('runtime_whatsapp_sessions').create({
             tenant_id,
             mobile,
             active_journey_id: fallbackJourney.journey_id,
-            current_node_id: fallbackJourney.nodes[0].id,
+            current_node_id: startNodeId,
             priority: fallbackJourney.priority || 1,
             processed_message_ids: [],
             last_user_message_at: new Date(),
