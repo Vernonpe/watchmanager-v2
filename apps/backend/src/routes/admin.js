@@ -11,6 +11,18 @@ const resolveTenant = (req, res, next) => {
 router.use(resolveTenant);
 
 /**
+ * Node Palette Definitions
+ */
+router.get('/nodes', async (req, res) => {
+  try {
+    const nodes = await mongoose.model('sys_node_definitions').find({ is_active: true });
+    res.status(200).json(nodes);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * Journeys CRUD
  */
 router.get('/journeys', async (req, res) => {

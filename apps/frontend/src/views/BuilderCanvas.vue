@@ -129,37 +129,16 @@
           <h3>Node Palette</h3>
           <p class="description">Click to insert a new functional block onto the canvas:</p>
           <div class="palette-grid">
-            <button class="palette-item" @click="addNode('trigger_webhook')">
-              <div class="palette-badge trigger-badge">Webhook</div>
-              <span>Entry Trigger</span>
-            </button>
-            <button class="palette-item" @click="addNode('trigger_menu')">
-              <div class="palette-badge trigger-badge">Menu</div>
-              <span>Menu Trigger</span>
-            </button>
-            <button class="palette-item" @click="addNode('prompt_text')">
-              <div class="palette-badge text-badge">Text</div>
-              <span>Prompt Text</span>
-            </button>
-            <button class="palette-item" @click="addNode('prompt_buttons')">
-              <div class="palette-badge buttons-badge">Buttons</div>
-              <span>Prompt Buttons</span>
-            </button>
-            <button class="palette-item" @click="addNode('prompt_list')">
-              <div class="palette-badge list-badge">List</div>
-              <span>Prompt List</span>
-            </button>
-            <button class="palette-item" @click="addNode('action_http')">
-              <div class="palette-badge http-badge">API</div>
-              <span>Outbound API</span>
-            </button>
-            <button class="palette-item" @click="addNode('action_db')">
-              <div class="palette-badge db-badge">DB</div>
-              <span>Database Ops</span>
-            </button>
-            <button class="palette-item" @click="addNode('condition_split')">
-              <div class="palette-badge condition-badge">Split</div>
-              <span>Condition Split</span>
+            <button 
+              v-for="nodeDef in paletteNodes" 
+              :key="nodeDef.type"
+              class="palette-item" 
+              @click="addNode(nodeDef.type)"
+            >
+              <div class="palette-badge" :class="nodeDef.palette_badge_class">
+                {{ nodeDef.icon_emoji }}
+              </div>
+              <span>{{ nodeDef.label }}</span>
             </button>
           </div>
 
@@ -911,6 +890,7 @@ const saveJourneyInline = async () => {
 
 // Initial Vue Flow states
 const nodes = ref([]);
+const paletteNodes = ref([]);
 const edges = ref([]);
 
 const selectedNode = ref(null);
@@ -1119,23 +1099,14 @@ const addNode = (type) => {
   nodeCount++;
   const id = `node_${type}_${nodeCount}`;
   
-  let config = {};
-  if (type === 'trigger_webhook') {
-    config = { keyword: 'service', match_type: 'exact', catch_all: false };
-  } else if (type === 'trigger_menu') {
-    config = { mapped_option: '1', description: 'Triggers when menu option 1 is selected' };
-  } else if (type === 'prompt_text') {
-    config = { message: 'Text question goes here...', await_response: true, input_variable: `var_${nodeCount}`, validation_regex: '.*', validation_error_message: 'Invalid input' };
-  } else if (type === 'prompt_buttons') {
-    config = { message: 'Select status:', input_variable: `var_${nodeCount}`, buttons: [{ id: 'yes', title: 'Yes' }, { id: 'no', title: 'No' }] };
-  } else if (type === 'prompt_list') {
-    config = { button_text: 'Select Option', title: 'Choices', description: 'Please pick an item:', input_variable: `var_${nodeCount}`, sections: [{ title: 'Category', rows: [{ id: 'opt_1', title: 'Option 1', description: 'Detail description' }] }] };
-  } else if (type === 'action_http') {
-    config = { url: 'https://api.watchmanager.co.za/v1/', method: 'POST', headers: {}, body_template: {} };
-  } else if (type === 'action_db') {
-    config = { collection: 'cache_reward_mechanics', operation: 'find', query: {}, data: {} };
-  } else if (type === 'condition_split') {
-    config = { variable: 'collected_data.status', operator: 'equals', value: 'active' };
+  // Dynamic palette config lookup
+  const nodeDef = paletteNodes.value.find(n => n.type === type);
+  // Deep clone default config to prevent passing references between nodes
+  let config = nodeDef && nodeDef.default_config ? JSON.parse(JSON.stringify(nodeDef.default_config)) : {};
+  
+  // Dynamic injection of default var names to prevent collisions
+  if (config.input_variable !== undefined) {
+    config.input_variable = `var_${nodeCount}`;
   }
 
   const newNode = {
@@ -1460,7 +1431,17 @@ const autoLayoutFlow = () => {
   }, 100);
 };
 
+const fetchPaletteNodes = async () => {
+  try {
+    const res = await axios.get('/api/admin/nodes');
+    paletteNodes.value = res.data;
+  } catch (err) {
+    console.error('Failed to load node palette:', err.message);
+  }
+};
+
 onMounted(() => {
+  fetchPaletteNodes();
   fetchTenants();
 });
 </script>

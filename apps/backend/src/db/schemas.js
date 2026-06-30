@@ -37,6 +37,16 @@ const sysPlatformConfigsSchema = new mongoose.Schema({
 });
 sysPlatformConfigsSchema.index({ key: 1 });
 
+const sysNodeDefinitionsSchema = new mongoose.Schema({
+  type: { type: String, required: true, unique: true }, // e.g., 'prompt_buttons'
+  label: { type: String, required: true },              // e.g., 'Prompt Buttons'
+  icon_emoji: { type: String, required: true },         // e.g., '🔘'
+  palette_badge_class: { type: String },                // e.g., 'buttons-badge'
+  default_config: { type: mongoose.Schema.Types.Mixed, required: true }, // Default JSON structure
+  is_active: { type: Boolean, default: true },
+  created_at: { type: Date, default: Date.now }
+});
+
 // ==========================================
 // 2. JOURNEY BUILDER & DESIGN (builder_)
 // ==========================================
@@ -190,6 +200,7 @@ devApiLogsSchema.index({ timestamp: -1 });
 const SysTenants = mongoose.model('sys_tenants', sysTenantsSchema);
 const SysChannel360Credentials = mongoose.model('sys_channel360_credentials', sysChannel360CredentialsSchema);
 const SysPlatformConfigs = mongoose.model('sys_platform_configs', sysPlatformConfigsSchema);
+const SysNodeDefinitions = mongoose.model('sys_node_definitions', sysNodeDefinitionsSchema);
 const SysUsers = mongoose.model('sys_users', sysUsersSchema);
 const BuilderJourneys = mongoose.model('builder_journeys', builderJourneysSchema);
 const BuilderConversationalTemplates = mongoose.model('builder_conversational_templates', builderConversationalTemplatesSchema);
@@ -205,6 +216,7 @@ module.exports = {
   SysTenants,
   SysChannel360Credentials,
   SysPlatformConfigs,
+  SysNodeDefinitions,
   SysUsers,
   BuilderJourneys,
   BuilderConversationalTemplates,
