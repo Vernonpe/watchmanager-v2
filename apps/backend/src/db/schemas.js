@@ -68,6 +68,21 @@ const builderConversationalTemplatesSchema = new mongoose.Schema({
 });
 builderConversationalTemplatesSchema.index({ tenant_id: 1, key: 1 }, { unique: true });
 
+const builderMenusSchema = new mongoose.Schema({
+  tenant_id: { type: String, ref: 'sys_tenants', required: true, unique: true },
+  enabled: { type: Boolean, default: false },
+  menu_title: { type: String, default: "Main Menu" },
+  menu_description: { type: String, default: "Please select an option from the list below:" },
+  items: [{
+    index: { type: Number, required: true },
+    label: { type: String, required: true },
+    target_journey_id: { type: String, required: true },
+    is_hidden: { type: Boolean, default: false }
+  }],
+  created_at: { type: Date, default: Date.now },
+  updated_at: { type: Date, default: Date.now }
+});
+
 // ==========================================
 // 3. ACTIVE SESSION & RUNTIME (runtime_)
 // ==========================================
@@ -92,6 +107,7 @@ const runtimeWhatsappSessionsSchema = new mongoose.Schema({
   whatsapp_number: { type: String },
   whatsapp_name: { type: String },
   last_user_message_at: { type: Date, default: Date.now },
+  is_at_main_menu: { type: Boolean, default: false },
   expires_at: { type: Date, required: true }
 });
 runtimeWhatsappSessionsSchema.index({ tenant_id: 1, mobile: 1 }, { unique: true });
@@ -150,6 +166,7 @@ const SysChannel360Credentials = mongoose.model('sys_channel360_credentials', sy
 const SysPlatformConfigs = mongoose.model('sys_platform_configs', sysPlatformConfigsSchema);
 const BuilderJourneys = mongoose.model('builder_journeys', builderJourneysSchema);
 const BuilderConversationalTemplates = mongoose.model('builder_conversational_templates', builderConversationalTemplatesSchema);
+const BuilderMenus = mongoose.model('builder_menus', builderMenusSchema);
 const RuntimeWhatsappSessions = mongoose.model('runtime_whatsapp_sessions', runtimeWhatsappSessionsSchema);
 const RuntimeAlarmTriggers = mongoose.model('runtime_alarm_triggers', runtimeAlarmTriggersSchema);
 const AuditWebhookStream = mongoose.model('audit_webhook_stream', auditWebhookStreamSchema);
@@ -162,6 +179,7 @@ module.exports = {
   SysPlatformConfigs,
   BuilderJourneys,
   BuilderConversationalTemplates,
+  BuilderMenus,
   RuntimeWhatsappSessions,
   RuntimeAlarmTriggers,
   AuditWebhookStream,

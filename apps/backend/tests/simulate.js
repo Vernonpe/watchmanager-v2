@@ -541,6 +541,68 @@ async function runTests() {
   }
   console.log('  [PASS] Delivery status update logged in audit stream:', JSON.stringify(notifications[0].payload));
 
+  console.log('\n[Test] 13. Verifying Main Menu routing gateway...');
+  // 1. Create/Update Menu Configuration via Admin CRUD Route
+  await axios.post(`${BASE_URL}/admin/menu`, {
+    enabled: true,
+    menu_title: "Help Desk",
+    menu_description: "Please select:",
+    items: [
+      { index: 1, label: "Log service request", target_journey_id: "journey_watchmanager_v2", is_hidden: false }
+    ]
+  }, { headers });
+
+  // 2. Clear existing session
+  await mongoose.model('runtime_whatsapp_sessions').deleteMany({ tenant_id: "tenant_watchmanager_prod_01", mobile: clientMobile });
+
+  // 3. Send generic message to webhook ingress to trigger main menu
+  await axios.post(`${BASE_URL}/platform_watchmanager_test_uuid/whatsapp/messages`, {
+    orgId: "org_watchmanager_test",
+    messageId: "msg_menu_hello",
+    message: { text: "hello" },
+    mobile: clientMobile
+  }, { headers });
+
+  await new Promise(resolve => setTimeout(resolve, 300));
+
+  // Assert session is created and is_at_main_menu is true
+  const sessionAfterHello = await mongoose.model('runtime_whatsapp_sessions').findOne({
+    tenant_id: "tenant_watchmanager_prod_01",
+    mobile: clientMobile
+  });
+
+  if (!sessionAfterHello || !sessionAfterHello.is_at_main_menu) {
+    throw new Error('Test Step 13 Failed: Session not created in Main Menu state.');
+  }
+  console.log('  [PASS] Session correctly created in Main Menu state.');
+
+  // 4. Send option reply "1" to transition to journey_watchmanager_v2
+  await axios.post(`${BASE_URL}/platform_watchmanager_test_uuid/whatsapp/messages`, {
+    orgId: "org_watchmanager_test",
+    messageId: "msg_menu_select_1",
+    message: { text: "1" },
+    mobile: clientMobile
+  }, { headers });
+
+  await new Promise(resolve => setTimeout(resolve, 300));
+
+  // Assert session transitioned to journey_watchmanager_v2 and is_at_main_menu is false
+  const sessionAfterSelect = await mongoose.model('runtime_whatsapp_sessions').findOne({
+    tenant_id: "tenant_watchmanager_prod_01",
+    mobile: clientMobile
+  });
+
+  if (!sessionAfterSelect) {
+    throw new Error('Test Step 13 Failed: Session lost after menu selection.');
+  }
+  if (sessionAfterSelect.is_at_main_menu) {
+    throw new Error('Test Step 13 Failed: Session still at Main Menu after selection.');
+  }
+  if (sessionAfterSelect.active_journey_id !== 'journey_watchmanager_v2') {
+    throw new Error(`Test Step 13 Failed: Transition destination mismatch. Got: ${sessionAfterSelect.active_journey_id}`);
+  }
+  console.log('  [PASS] Session transitioned to subflow journey_watchmanager_v2 successfully.');
+
   console.log('\n🎉 ALL STATE MACHINE & PREEMPTION FLOW INTEGRATION TESTS PASSED VERIFICATION 🎉\n');
 }
 

@@ -3,7 +3,7 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const { acquireLock } = require('../middleware/concurrency');
 const { triggerAlarmPreemption } = require('../interpreter/preemptionManager');
-const { runInterpreterLoop, sendNodeWhatsAppPrompt } = require('../interpreter/interpreter');
+const { runInterpreterLoop, sendNodeWhatsAppPrompt, sendMainMenuPrompt } = require('../interpreter/interpreter');
 
 /**
  * Helper to process inbound WhatsApp messages after tenant validation
@@ -27,48 +27,87 @@ async function executeInboundMessage(credentials, payload, messageId, mobile) {
 
     if (!session) {
       console.log(`[Webhook Session] No session found. Resolving journey for trigger: "${userMessageText}"`);
-      // Find journey matching ingress trigger keyword
-      let defaultJourney = await mongoose.model('builder_journeys').findOne({
+      // Find journey matching ingress trigger keyword exactly
+      let targetJourney = await mongoose.model('builder_journeys').findOne({
         tenant_id,
         is_active: true,
         ingress_trigger_keyword: userMessageText
       });
 
-      if (!defaultJourney) {
-        // Fallback to any active journey with a non-empty ingress trigger
-        defaultJourney = await mongoose.model('builder_journeys').findOne({
+      if (targetJourney) {
+        console.log(`[Webhook Session] Resolved journey by trigger keyword: ${targetJourney.journey_id}`);
+        const minutes = targetJourney.session_timeout_minutes || 1440;
+        const expiresAt = new Date(Date.now() + minutes * 60 * 1000);
+
+        session = await mongoose.model('runtime_whatsapp_sessions').create({
           tenant_id,
-          is_active: true,
-          ingress_trigger_keyword: { $exists: true, $ne: "" }
+          mobile,
+          active_journey_id: targetJourney.journey_id,
+          current_node_id: targetJourney.nodes[0].id,
+          priority: targetJourney.priority || 1,
+          processed_message_ids: [],
+          last_user_message_at: new Date(),
+          expires_at: expiresAt
         });
-      }
+        console.log(`[Webhook Session] Created session, current_node_id: ${session.current_node_id}`);
+        
+        const firstNode = targetJourney.nodes.find(n => n.id === session.current_node_id);
+        if (firstNode) {
+          await sendNodeWhatsAppPrompt(credentials, mobile, firstNode, session);
+        }
+      } else {
+        // No trigger keyword matched. Check if Main Menu is enabled
+        const menu = await mongoose.model('builder_menus').findOne({ tenant_id, enabled: true });
+        if (menu) {
+          console.log(`[Webhook Session] No keyword matched. Launching Main Menu for ${mobile}`);
+          const expiresAt = new Date(Date.now() + 1440 * 60 * 1000); // 24h default menu session
 
-      if (!defaultJourney) {
-        console.warn(`[Webhook] No active ingress journey found for tenant: ${tenant_id}`);
-        return;
-      }
-      console.log(`[Webhook Session] Resolved journey: ${defaultJourney.journey_id}`);
+          session = await mongoose.model('runtime_whatsapp_sessions').create({
+            tenant_id,
+            mobile,
+            active_journey_id: 'journey_main_menu',
+            current_node_id: 'node_main_menu',
+            priority: 1,
+            is_at_main_menu: true,
+            processed_message_ids: [],
+            last_user_message_at: new Date(),
+            expires_at: expiresAt
+          });
+          
+          await sendMainMenuPrompt(credentials, mobile, menu, session);
+        } else {
+          // Fallback to any active journey with a non-empty ingress trigger (default behavior)
+          const fallbackJourney = await mongoose.model('builder_journeys').findOne({
+            tenant_id,
+            is_active: true,
+            ingress_trigger_keyword: { $exists: true, $ne: "" }
+          });
 
-      const minutes = defaultJourney.session_timeout_minutes || 1440;
-      const expiresAt = new Date(Date.now() + minutes * 60 * 1000);
+          if (!fallbackJourney) {
+            console.warn(`[Webhook] No active ingress journey or Main Menu found for tenant: ${tenant_id}`);
+            return;
+          }
 
-      session = await mongoose.model('runtime_whatsapp_sessions').create({
-        tenant_id,
-        mobile,
-        active_journey_id: defaultJourney.journey_id,
-        current_node_id: defaultJourney.nodes[0].id,
-        priority: defaultJourney.priority || 1,
-        processed_message_ids: [],
-        last_user_message_at: new Date(),
-        expires_at: expiresAt
-      });
-      console.log(`[Webhook Session] Created session, current_node_id: ${session.current_node_id}`);
-      
-      // Since it's a new session, initialize prompt for the first node
-      const firstNode = defaultJourney.nodes.find(n => n.id === session.current_node_id);
-      if (firstNode) {
-        console.log(`[Webhook Session] Initializing prompt for first node: ${firstNode.id}`);
-        await sendNodeWhatsAppPrompt(credentials, mobile, firstNode, session);
+          console.log(`[Webhook Session] Fallback to default journey: ${fallbackJourney.journey_id}`);
+          const minutes = fallbackJourney.session_timeout_minutes || 1440;
+          const expiresAt = new Date(Date.now() + minutes * 60 * 1000);
+
+          session = await mongoose.model('runtime_whatsapp_sessions').create({
+            tenant_id,
+            mobile,
+            active_journey_id: fallbackJourney.journey_id,
+            current_node_id: fallbackJourney.nodes[0].id,
+            priority: fallbackJourney.priority || 1,
+            processed_message_ids: [],
+            last_user_message_at: new Date(),
+            expires_at: expiresAt
+          });
+
+          const firstNode = fallbackJourney.nodes.find(n => n.id === session.current_node_id);
+          if (firstNode) {
+            await sendNodeWhatsAppPrompt(credentials, mobile, firstNode, session);
+          }
+        }
       }
       
       // Save message ID to idempotency list and persist session before exiting

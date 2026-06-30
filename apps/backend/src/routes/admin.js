@@ -59,6 +59,47 @@ router.post('/journeys', async (req, res) => {
 });
 
 /**
+ * Main Menu CRUD
+ */
+router.get('/menu', async (req, res) => {
+  try {
+    let menu = await mongoose.model('builder_menus').findOne({ tenant_id: req.tenant_id });
+    if (!menu) {
+      menu = {
+        tenant_id: req.tenant_id,
+        enabled: false,
+        menu_title: "Main Menu",
+        menu_description: "Please select an option from the list below:",
+        items: []
+      };
+    }
+    res.status(200).json(menu);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/menu', async (req, res) => {
+  const { enabled, menu_title, menu_description, items } = req.body;
+  try {
+    const menu = await mongoose.model('builder_menus').findOneAndUpdate(
+      { tenant_id: req.tenant_id },
+      { 
+        enabled: enabled !== undefined ? enabled : false,
+        menu_title: menu_title || "Main Menu",
+        menu_description: menu_description || "Please select an option from the list below:",
+        items: items || [],
+        updated_at: new Date()
+      },
+      { upsert: true, new: true }
+    );
+    res.status(200).json(menu);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * Tenants CRUD
  */
 router.get('/tenants', async (req, res) => {

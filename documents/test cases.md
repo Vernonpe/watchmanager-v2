@@ -194,5 +194,36 @@ Verify that the Journey Builder configuration header is divided into two rows: t
   - **Lifecycle & Expiration**: Timeout (minutes) & Exit Keys fields.
 - The visual canvas area automatically expands and fits the remaining page height cleanly.
 
+---
+
+## TC-014: Inbound Main Menu Routing Gateway
+### Description
+Verify that when the Main Menu is enabled, inbound user messages that do not match any subflow keywords are intercepted and replied to with the Main Menu choices. Selecting an option successfully switches the active session to the target subflow journey.
+### Action
+1. Enable the Main Menu for a tenant with option 1 linked to journey `journey_watchmanager_v2`.
+2. Clear any active session for the user mobile `27836520670`.
+3. Send an inbound message `hello` from the user mobile.
+4. Verify that the session transitions to the Main Menu and replies with the menu list.
+5. Send an inbound message `1` from the user mobile.
+### Expected Results
+- Sending `hello` creates a session with `is_at_main_menu` set to `true`.
+- The system replies with the Main Menu content.
+- Sending `1` transitions `active_journey_id` to `journey_watchmanager_v2`, resets `is_at_main_menu` to `false`, and executes the first node of the target journey.
+
+---
+
+## TC-015: Main Menu Configuration Management API & Visual Router
+### Description
+Verify that the Main Menu layout settings (title, description, and list items) can be loaded and saved via the admin API, and visually verified on the Visual Router view of the frontend.
+### Action
+1. Open the Journey Builder and switch "Workspace Mode" to "Main Menu Router".
+2. Change the Title to "Custom Help Desk" and add a menu option pointing to a journey.
+3. Click "Save Router Settings".
+4. Refresh the page and confirm the settings persist.
+### Expected Results
+- The "Main Menu Router" workspace displays the configuration form and a dynamic mapping layout.
+- The visual mapping chart displays the Main Menu block connected to the subflow blocks.
+- Clicking "Save Router Settings" makes a `POST /api/admin/menu` request, and reloading performs a `GET /api/admin/menu` request which returns the updated settings.
+
 
 

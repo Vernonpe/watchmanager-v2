@@ -9,6 +9,76 @@ async function runInterpreterLoop(session, webhookPayload, credentials) {
   const userMessageText = (webhookPayload.message && webhookPayload.message.text || '').trim();
   const selectedChoiceId = webhookPayload.message && webhookPayload.message.payload; // From quick-replies / lists
 
+  // 0. Intercept if user is currently at the Main Menu
+  if (session.is_at_main_menu) {
+    const menuObj = await mongoose.model('builder_menus').findOne({ tenant_id: session.tenant_id, enabled: true });
+    if (!menuObj) {
+      // Main menu disabled mid-session, clear flag and continue to normal loop
+      session.is_at_main_menu = false;
+      await session.save();
+    } else {
+      const normalizedInput = userMessageText.toLowerCase().trim();
+      // Match option number or option label text
+      const matchedItem = menuObj.items.find(item => {
+        return item.index.toString() === normalizedInput || item.label.toLowerCase().trim() === normalizedInput;
+      });
+
+      if (matchedItem) {
+        const targetJourney = await mongoose.model('builder_journeys').findOne({
+          tenant_id: session.tenant_id,
+          journey_id: matchedItem.target_journey_id,
+          is_active: true
+        });
+
+        if (targetJourney && targetJourney.nodes && targetJourney.nodes.length > 0) {
+          console.log(`[Interpreter Menu] Transitioning user ${session.mobile} to journey: ${targetJourney.journey_id}`);
+          session.active_journey_id = targetJourney.journey_id;
+          session.current_node_id = targetJourney.nodes[0].id;
+          session.is_at_main_menu = false;
+          session.collected_data.clear();
+          session.state_history = [];
+          await session.save();
+
+          const firstNode = targetJourney.nodes[0];
+          await sendNodeWhatsAppPrompt(credentials, session.mobile, firstNode, session);
+          return;
+        } else {
+          await sendWhatsAppMessage(credentials, session.mobile, {
+            text: "This option is currently unavailable. Please select another option:"
+          });
+          await sendMainMenuPrompt(credentials, session.mobile, menuObj, session);
+          return;
+        }
+      } else {
+        // Option didn't match. Check if they entered exit keyword
+        const exitKeywords = ['exit', 'stop'];
+        if (exitKeywords.includes(normalizedInput)) {
+          session.is_at_main_menu = false;
+          session.collected_data.clear();
+          session.state_history = [];
+          const defaultJourney = await mongoose.model('builder_journeys').findOne({ tenant_id: session.tenant_id, is_active: true });
+          if (defaultJourney) {
+            session.active_journey_id = defaultJourney.journey_id;
+            session.current_node_id = defaultJourney.nodes[0].id;
+            await session.save();
+            await sendWhatsAppMessage(credentials, session.mobile, { text: "Conversation reset. Starting over." });
+            await sendNodeWhatsAppPrompt(credentials, session.mobile, defaultJourney.nodes[0], session);
+          } else {
+            await session.save();
+            await sendWhatsAppMessage(credentials, session.mobile, { text: "Session reset." });
+          }
+          return;
+        }
+
+        await sendWhatsAppMessage(credentials, session.mobile, {
+          text: "Invalid selection. Please reply with the option number (e.g. 1):"
+        });
+        await sendMainMenuPrompt(credentials, session.mobile, menuObj, session);
+        return;
+      }
+    }
+  }
+
   // 1. Load active compiled journey graph
   const journey = await mongoose.model('builder_journeys').findOne({
     tenant_id: session.tenant_id,
@@ -54,6 +124,18 @@ async function runInterpreterLoop(session, webhookPayload, credentials) {
 
   // menu keyword
   if (menuKeywords.includes(normalizedInput)) {
+    const menuObj = await mongoose.model('builder_menus').findOne({ tenant_id: session.tenant_id, enabled: true });
+    if (menuObj) {
+      session.is_at_main_menu = true;
+      session.active_journey_id = 'journey_main_menu';
+      session.current_node_id = 'node_main_menu';
+      session.collected_data.clear();
+      session.state_history = [];
+      await session.save();
+      await sendMainMenuPrompt(credentials, session.mobile, menuObj, session);
+      return;
+    }
+
     // Redirect user to the root main menu node
     const mainMenuNode = journey.nodes.find(n => n.id === 'node_main_menu' || n.id === 'node_fault_menu');
     if (mainMenuNode) {
@@ -388,9 +470,30 @@ async function sendNodeWhatsAppPrompt(credentials, mobile, node, session) {
   return sendWhatsAppMessage(credentials, mobile, payload);
 }
 
+/**
+ * Formats and sends the Main Menu prompt text to the subscriber
+ */
+async function sendMainMenuPrompt(credentials, mobile, menu, session) {
+  const visibleItems = (menu.items || []).filter(item => !item.is_hidden);
+  
+  const text = `*${menu.menu_title}*\n${menu.menu_description}\n\n` + 
+               visibleItems.map(item => `${item.index}. ${item.label}`).join('\n');
+  const payload = { text };
+
+  // Record audit trail of outbound message
+  await mongoose.model('audit_webhook_stream').create({
+    tenant_id: menu.tenant_id,
+    direction: 'outbound_receipt',
+    payload: { recipient: mobile, node_id: 'node_main_menu', payload }
+  });
+
+  return sendWhatsAppMessage(credentials, mobile, payload);
+}
+
 module.exports = {
   runInterpreterLoop,
   interpolateTemplate,
   sendWhatsAppMessage,
-  sendNodeWhatsAppPrompt
+  sendNodeWhatsAppPrompt,
+  sendMainMenuPrompt
 };
