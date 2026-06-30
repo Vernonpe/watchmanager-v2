@@ -163,3 +163,33 @@ Whenever you push changes to your `main` branch, pull them on the server and reb
 git pull origin main
 docker compose --env-file .env.prod up -d --build
 ```
+
+---
+
+## 🔒 User Authentication & Access Control
+
+Access to all administrative panels (Journey Builder, Config Panel, Audit Logs, Operations Console, User Accounts, and Dev Console) is locked behind JWT authentication.
+
+### Default Admin Credentials
+When the application starts, the database seeder automatically creates a default administrator account if the `admin` user is not present:
+* **Username**: `admin`
+* **Password**: `admin_novare_123`
+
+Administrators can navigate to the **User Accounts** tab to:
+- Create new user accounts (Admin/Operator roles).
+- Temporarily or permanently disable user logins (with guards preventing users from disabling their own active account).
+- View plain text passwords for active users during the testing/QA cycle.
+
+---
+
+## 🛠️ Developer Logging Console & API
+
+The Developer Logging feature captures incoming HTTP requests (such as webhook payloads from n8n or external services) and presents them in a terminal-like GUI inspector.
+
+### Key Attributes
+1. **Public Receiver Endpoint**: `POST /api/dev/logger`
+   - Accepts any arbitrary JSON payload.
+   - Requires no authentication, allowing easy routing from third-party tools.
+   - Filters out sensitive headers (like cookies and auth tokens) and enforces a 100 KB payload size limit.
+2. **Global Toggle**: Enable/disable logging state directly from the Dev Console. When disabled, incoming requests are ignored with zero performance footprint.
+3. **Log Annotations**: Edit the source context, purpose, and annotations/notes for any captured log item. Use the inspector to view raw request bodies and headers.
