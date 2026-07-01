@@ -346,8 +346,8 @@ router.get('/logs', async (req, res) => {
     if (!type || type === 'all' || type === 'inbound' || type === 'receipt' || type === 'outbound_msg') {
       let query = { ...baseQuery };
       if (type === 'inbound') query.direction = 'inbound';
-      if (type === 'receipt') query.direction = 'outbound_receipt';
-      if (type === 'outbound_msg') query.direction = 'outbound_message';
+      if (type === 'receipt') query.direction = 'notification_status';
+      if (type === 'outbound_msg') query.direction = { $in: ['outbound_message', 'outbound_receipt'] };
       
       const webhooks = await mongoose.model('audit_webhook_stream')
         .find(query)
@@ -358,11 +358,11 @@ router.get('/logs', async (req, res) => {
       results = results.concat(webhooks.map(w => ({
         id: w._id,
         timestamp: w.created_at,
-        type: w.direction === 'inbound' ? 'Inbound WhatsApp' : w.direction === 'outbound_receipt' ? 'Delivery Receipt' : 'Outbound Message',
-        category: w.direction === 'inbound' ? 'inbound' : w.direction === 'outbound_receipt' ? 'receipt' : 'outbound_msg',
+        type: w.direction === 'inbound' ? 'Inbound WhatsApp' : w.direction === 'notification_status' ? 'Delivery Receipt' : 'Outbound Message',
+        category: w.direction === 'inbound' ? 'inbound' : w.direction === 'notification_status' ? 'receipt' : 'outbound_msg',
         summary: w.direction === 'inbound' 
           ? `From: ${w.payload.mobile || (w.payload.client && w.payload.client.externalId) || (w.payload.message && w.payload.message.from) || 'Unknown'} - Text: "${(w.payload.messages && w.payload.messages[0] && w.payload.messages[0].text) || (w.payload.message && w.payload.message.text) || 'N/A'}"`
-          : w.direction === 'outbound_receipt' ? `Delivery confirmation callback` : `Sent to: ${w.payload.recipient || 'Unknown'} - Message: "${w.payload.payload && w.payload.payload.text ? w.payload.payload.text : (w.payload.payload && w.payload.payload.type === 'template' ? 'Template: ' + w.payload.payload.template_name : 'Interactive / Media')}"`,
+          : w.direction === 'notification_status' ? `Delivery confirmation callback` : `Sent to: ${w.payload.recipient || 'Unknown'} - Message: "${w.payload.payload && w.payload.payload.text ? w.payload.payload.text : (w.payload.payload && w.payload.payload.type === 'template' ? 'Template: ' + w.payload.payload.template_name : 'Interactive / Media')}"`,
         details: w.payload
       })));
     }
