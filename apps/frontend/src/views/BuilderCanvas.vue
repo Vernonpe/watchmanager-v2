@@ -438,7 +438,7 @@
 
               <div class="form-group">
                 <label>Node Display Name (Optional)</label>
-                <input v-model="selectedNode.label" type="text" class="glass-input" placeholder="e.g. Welcome Message" />
+                <input :value="selectedNode.label" @input="e => { selectedNode.label = e.target.value; updateNode(selectedNode.id, { label: e.target.value }); }" type="text" class="glass-input" placeholder="e.g. Welcome Message" />
               </div>
 
               <div class="form-group">
@@ -812,7 +812,7 @@ import { Controls } from '@vue-flow/controls';
 import axios from 'axios';
 import CustomEdge from '../components/CustomEdge.vue';
 
-const { zoomIn, zoomOut, fitView } = useVueFlow();
+const { zoomIn, zoomOut, fitView, updateNode } = useVueFlow();
 
 // Load default vue flow styles
 import '@vue-flow/core/dist/style.css';
@@ -1039,7 +1039,7 @@ const loadSelectedJourney = () => {
       id: n.id,
       type: n.type,
       position: n.position || { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 },
-      label: `${n.type.toUpperCase()} block`,
+      label: n.label || `${n.type.toUpperCase()} block`,
       config: n.config || {}
     }));
     
