@@ -33,7 +33,7 @@ const seedNodes = async () => {
         label: 'Prompt Text',
         icon_emoji: '💬',
         palette_badge_class: 'text-badge',
-        default_config: { message: '', input_variable: '', await_response: false, fallback_template_name: '', fallback_template_params: [] }
+        default_config: { message: '', input_variable: '', await_response: true, fallback_template_name: '', fallback_template_params: [] }
       },
       {
         type: 'prompt_buttons',
