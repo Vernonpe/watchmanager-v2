@@ -337,11 +337,17 @@ router.get('/logs', async (req, res) => {
   try {
     let results = [];
 
-    // 1. Fetch Inbound/Receipt webhooks
-    if (!type || type === 'all' || type === 'inbound' || type === 'receipt') {
-      let query = { tenant_id };
+    let baseQuery = {};
+    if (tenant_id !== 'all') {
+      baseQuery.tenant_id = tenant_id;
+    }
+
+    // 1. Fetch Inbound/Receipt/Outbound Messages
+    if (!type || type === 'all' || type === 'inbound' || type === 'receipt' || type === 'outbound_msg') {
+      let query = { ...baseQuery };
       if (type === 'inbound') query.direction = 'inbound';
       if (type === 'receipt') query.direction = 'outbound_receipt';
+      if (type === 'outbound_msg') query.direction = 'outbound_message';
       
       const webhooks = await mongoose.model('audit_webhook_stream')
         .find(query)
@@ -352,11 +358,11 @@ router.get('/logs', async (req, res) => {
       results = results.concat(webhooks.map(w => ({
         id: w._id,
         timestamp: w.created_at,
-        type: w.direction === 'inbound' ? 'Inbound WhatsApp' : 'Delivery Receipt',
-        category: w.direction === 'inbound' ? 'inbound' : 'receipt',
+        type: w.direction === 'inbound' ? 'Inbound WhatsApp' : w.direction === 'outbound_receipt' ? 'Delivery Receipt' : 'Outbound Message',
+        category: w.direction === 'inbound' ? 'inbound' : w.direction === 'outbound_receipt' ? 'receipt' : 'outbound_msg',
         summary: w.direction === 'inbound' 
           ? `From: ${w.payload.mobile || (w.payload.client && w.payload.client.externalId) || (w.payload.message && w.payload.message.from) || 'Unknown'} - Text: "${(w.payload.messages && w.payload.messages[0] && w.payload.messages[0].text) || (w.payload.message && w.payload.message.text) || 'N/A'}"`
-          : `Delivery confirmation callback`,
+          : w.direction === 'outbound_receipt' ? `Delivery confirmation callback` : `Sent to: ${w.payload.recipient || 'Unknown'} - Message: "${w.payload.payload && w.payload.payload.text ? w.payload.payload.text : (w.payload.payload && w.payload.payload.type === 'template' ? 'Template: ' + w.payload.payload.template_name : 'Interactive / Media')}"`,
         details: w.payload
       })));
     }
@@ -364,7 +370,7 @@ router.get('/logs', async (req, res) => {
     // 2. Fetch API Outbound logs
     if (!type || type === 'all' || type === 'outbound') {
       const outbounds = await mongoose.model('audit_api_outbound_logs')
-        .find({ tenant_id })
+        .find({ ...baseQuery })
         .sort({ created_at: -1 })
         .limit(100)
         .lean();
@@ -388,7 +394,7 @@ router.get('/logs', async (req, res) => {
     // 3. Fetch exceptions
     if (!type || type === 'all' || type === 'exception') {
       const exceptions = await mongoose.model('audit_system_exceptions')
-        .find({ tenant_id })
+        .find({ ...baseQuery })
         .sort({ created_at: -1 })
         .limit(100)
         .lean();

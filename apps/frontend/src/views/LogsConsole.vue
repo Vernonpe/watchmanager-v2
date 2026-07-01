@@ -10,6 +10,7 @@
         <div class="filter-group">
           <label>Tenant:</label>
           <select v-model="selectedTenantId" class="glass-input select-input" @change="fetchLogs">
+            <option value="all">All Tenants</option>
             <option v-for="t in tenants" :key="t.tenant_id" :value="t.tenant_id">{{ t.name }}</option>
           </select>
         </div>
@@ -115,6 +116,7 @@ const selectedCategory = ref('all');
 const pills = [
   { label: 'All Logs', value: 'all' },
   { label: 'Inbound Messages', value: 'inbound' },
+  { label: 'Outbound Messages', value: 'outbound_msg' },
   { label: 'Outbound API Calls', value: 'outbound' },
   { label: 'Delivery Receipts', value: 'receipt' },
   { label: 'Exceptions / Errors', value: 'exception' }
@@ -372,6 +374,7 @@ onMounted(() => {
 }
 
 .log-badge.inbound { background: rgba(50, 150, 255, 0.15); color: var(--accent-blue); }
+.log-badge.outbound_msg { background: rgba(160, 100, 255, 0.15); color: #c084fc; }
 .log-badge.outbound { background: rgba(255, 170, 0, 0.15); color: var(--accent-orange); }
 .log-badge.receipt { background: rgba(0, 220, 200, 0.15); color: var(--accent-cyan); }
 .log-badge.exception { background: rgba(255, 70, 90, 0.15); color: var(--accent-red); }

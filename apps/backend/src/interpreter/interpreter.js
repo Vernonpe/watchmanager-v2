@@ -386,6 +386,14 @@ async function sendWhatsAppMessage(credentials, mobile, payload, appUserId) {
 
   try {
     const res = await axios.post(url, body, { headers, timeout: 5000 });
+    
+    // Record audit trail of outbound message
+    await mongoose.model('audit_webhook_stream').create({
+      tenant_id: credentials.tenant_id,
+      direction: 'outbound_message',
+      payload: { recipient: mobile, appUserId, payload, response: res.data }
+    });
+
     return res.data;
   } catch (err) {
     const responseBody = err.response ? err.response.data : {};
@@ -447,12 +455,7 @@ async function sendNodeWhatsAppPrompt(credentials, mobile, node, session) {
     }
   }
 
-  // Record audit trail of outbound message
-  await mongoose.model('audit_webhook_stream').create({
-    tenant_id: session.tenant_id,
-    direction: 'outbound_receipt',
-    payload: { recipient: mobile, node_id: node.id, payload }
-  });
+
 
   return sendWhatsAppMessage(credentials, mobile, payload, session.app_user_id);
 }
@@ -467,12 +470,7 @@ async function sendMainMenuPrompt(credentials, mobile, menu, session) {
                visibleItems.map(item => `${item.index}. ${item.label}`).join('\n');
   const payload = { text };
 
-  // Record audit trail of outbound message
-  await mongoose.model('audit_webhook_stream').create({
-    tenant_id: menu.tenant_id,
-    direction: 'outbound_receipt',
-    payload: { recipient: mobile, node_id: 'node_main_menu', payload }
-  });
+
 
   return sendWhatsAppMessage(credentials, mobile, payload, session.app_user_id);
 }

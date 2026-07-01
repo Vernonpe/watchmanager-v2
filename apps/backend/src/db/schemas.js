@@ -165,7 +165,7 @@ runtimeAlarmTriggersSchema.index({ tenant_id: 1, mobile: 1 });
 
 const auditWebhookStreamSchema = new mongoose.Schema({
   tenant_id: { type: String, ref: 'sys_tenants' },
-  direction: { type: String, enum: ['inbound', 'outbound_receipt', 'notification_status'], required: true },
+  direction: { type: String, enum: ['inbound', 'outbound_receipt', 'notification_status', 'outbound_message'], required: true },
   payload: { type: mongoose.Schema.Types.Mixed, required: true },
   created_at: { type: Date, default: Date.now, expires: 2592000 } // 30 days
 });
