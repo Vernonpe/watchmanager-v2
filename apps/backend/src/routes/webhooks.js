@@ -51,10 +51,12 @@ async function executeInboundMessage(credentials, payload, messageId, mobile) {
 
         const triggerNode = targetJourney.nodes.find(n => n.type === 'trigger_webhook' && n.config.keyword === userMessageText);
         const startNodeId = resolveStartNode(targetJourney, triggerNode);
+        const appUserId = payload.appUser && payload.appUser._id;
 
         session = await mongoose.model('runtime_whatsapp_sessions').create({
           tenant_id,
           mobile,
+          app_user_id: appUserId,
           active_journey_id: targetJourney.journey_id,
           current_node_id: startNodeId,
           priority: targetJourney.priority || 1,
@@ -90,10 +92,12 @@ async function executeInboundMessage(credentials, payload, messageId, mobile) {
 
           const triggerNode = fallbackJourney.nodes.find(n => n.type === 'trigger_webhook' && n.config.catch_all === true);
           const startNodeId = resolveStartNode(fallbackJourney, triggerNode);
+          const appUserId = payload.appUser && payload.appUser._id;
 
           session = await mongoose.model('runtime_whatsapp_sessions').create({
             tenant_id,
             mobile,
+            app_user_id: appUserId,
             active_journey_id: fallbackJourney.journey_id,
             current_node_id: startNodeId,
             priority: fallbackJourney.priority || 1,
@@ -123,6 +127,11 @@ async function executeInboundMessage(credentials, payload, messageId, mobile) {
     session.processed_message_ids.push(messageId);
     if (session.processed_message_ids.length > 20) {
       session.processed_message_ids.shift();
+    }
+
+    const appUserId = payload.appUser && payload.appUser._id;
+    if (appUserId && session.app_user_id !== appUserId) {
+      session.app_user_id = appUserId;
     }
 
     // Update session expiration & activity timestamps

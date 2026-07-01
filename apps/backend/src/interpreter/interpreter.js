@@ -48,7 +48,7 @@ async function runInterpreterLoop(session, webhookPayload, credentials) {
     session.collected_data.clear();
     session.state_history = [];
     await session.save();
-    await sendWhatsAppMessage(credentials, session.mobile, { text: "Conversation reset. Starting over." });
+    await sendWhatsAppMessage(credentials, session.mobile, { text: "Conversation reset. Starting over." }, session.app_user_id);
     
     // Trigger prompt for the first node
     const firstNode = journey.nodes.find(n => n.id === session.current_node_id);
@@ -80,7 +80,7 @@ async function runInterpreterLoop(session, webhookPayload, credentials) {
       await session.save();
       await sendNodeWhatsAppPrompt(credentials, session.mobile, mainMenuNode, session);
     } else {
-      await sendWhatsAppMessage(credentials, session.mobile, { text: "Menu command entered, but no menu node is registered." });
+      await sendWhatsAppMessage(credentials, session.mobile, { text: "Menu command entered, but no menu node is registered." }, session.app_user_id);
     }
     return;
   }
@@ -109,7 +109,7 @@ async function runInterpreterLoop(session, webhookPayload, credentials) {
     });
     
     const helpText = helpTemplate ? helpTemplate.message_text : "To navigate this conversation, type 'back' to go to the previous question, 'menu' to return to the main menu, or 'exit' to clear all progress.";
-    await sendWhatsAppMessage(credentials, session.mobile, { text: helpText });
+    await sendWhatsAppMessage(credentials, session.mobile, { text: helpText }, session.app_user_id);
     
     // Re-prompt the active node
     await sendNodeWhatsAppPrompt(credentials, session.mobile, currentNode, session);
@@ -131,7 +131,7 @@ async function runInterpreterLoop(session, webhookPayload, credentials) {
     const regex = new RegExp(currentNode.config.validation_regex || '.*');
     if (!regex.test(userMessageText)) {
       const errorMsg = currentNode.config.validation_error_message || "Invalid input. Please try again:";
-      await sendWhatsAppMessage(credentials, session.mobile, { text: errorMsg });
+      await sendWhatsAppMessage(credentials, session.mobile, { text: errorMsg }, session.app_user_id);
       return; // Halt and wait for correct input
     }
 
@@ -319,7 +319,7 @@ async function runInterpreterLoop(session, webhookPayload, credentials) {
         is_active: true
       });
       const restoredNode = restoredJourney.nodes.find(n => n.id === session.current_node_id);
-      await sendWhatsAppMessage(credentials, session.mobile, { text: "⚠️ Safe status confirmed. Let's resume your previous technical fault report:" });
+      await sendWhatsAppMessage(credentials, session.mobile, { text: "⚠️ Safe status confirmed. Let's resume your previous technical fault report:" }, session.app_user_id);
       await sendNodeWhatsAppPrompt(credentials, session.mobile, restoredNode, session);
     } else {
       // Absolute clean finish - expire session record
@@ -366,13 +366,14 @@ function interpolateTemplate(template, session) {
 /**
  * Sends a raw text or template message to the Channel360 gateway
  */
-async function sendWhatsAppMessage(credentials, mobile, payload) {
+async function sendWhatsAppMessage(credentials, mobile, payload, appUserId) {
   const isTest = credentials.is_test_mode;
   const isTemplate = payload && payload.type === 'template';
   
   const endpoint = isTemplate ? 'template' : 'reply';
+  const targetId = appUserId || mobile;
   const baseUrl = isTest ? (process.env.MOCK_SERVER_URL || 'http://localhost:3002') : `https://www.channel360.co.za/v1.1/org/${credentials.org_id}/whatsapp/appuser`;
-  const url = isTest ? `${baseUrl}/whatsapp_reply` : `${baseUrl}/${mobile}/${endpoint}`;
+  const url = isTest ? `${baseUrl}/whatsapp_reply` : `${baseUrl}/${targetId}/${endpoint}`;
 
   const headers = {
     'Content-Type': 'application/json',
@@ -385,7 +386,15 @@ async function sendWhatsAppMessage(credentials, mobile, payload) {
     const res = await axios.post(url, body, { headers, timeout: 5000 });
     return res.data;
   } catch (err) {
-    console.error(`[Channel360 REST Error] Failed to send message to ${mobile}:`, err.message);
+    const responseBody = err.response ? err.response.data : {};
+    console.error(`[Channel360 REST Error] Failed to send message to ${targetId}:`, err.message, responseBody);
+    await mongoose.model('audit_system_exceptions').create({
+      tenant_id: credentials.tenant_id,
+      exception_type: 'Channel360_REST_Error',
+      message: err.message,
+      stack_trace: err.stack,
+      request_context: { url, payload: body, response: responseBody }
+    });
     throw err;
   }
 }
@@ -443,7 +452,7 @@ async function sendNodeWhatsAppPrompt(credentials, mobile, node, session) {
     payload: { recipient: mobile, node_id: node.id, payload }
   });
 
-  return sendWhatsAppMessage(credentials, mobile, payload);
+  return sendWhatsAppMessage(credentials, mobile, payload, session.app_user_id);
 }
 
 /**
@@ -463,7 +472,7 @@ async function sendMainMenuPrompt(credentials, mobile, menu, session) {
     payload: { recipient: mobile, node_id: 'node_main_menu', payload }
   });
 
-  return sendWhatsAppMessage(credentials, mobile, payload);
+  return sendWhatsAppMessage(credentials, mobile, payload, session.app_user_id);
 }
 
 module.exports = {

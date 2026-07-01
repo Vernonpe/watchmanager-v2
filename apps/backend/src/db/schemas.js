@@ -102,6 +102,7 @@ const builderMenusSchema = new mongoose.Schema({
 const runtimeWhatsappSessionsSchema = new mongoose.Schema({
   tenant_id: { type: String, ref: 'sys_tenants', required: true },
   mobile: { type: String, required: true },
+  app_user_id: { type: String },
   active_journey_id: { type: String, required: true },
   current_node_id: { type: String, required: true },
   priority: { type: Number, default: 1 },

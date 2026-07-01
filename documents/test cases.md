@@ -314,3 +314,28 @@ Verify that the advanced generic CSS classes for nested component configurations
 - The Prompt Buttons drawer correctly wraps each button configuration inside a styled `button-group-card` with an outline and a delete button in the top right.
 - The single-output toggle switch renders correctly on a single line with `row-align-checkbox` styling.
 - The Prompt List row configurations use the same consistent card layout without any visual distortion or raw HTML text spilling.
+
+---
+
+## TC-021: Webhook Payload AppUserId Extraction
+### Description
+Verify that inbound webhook triggers successfully capture and store the `appUser._id` inside the runtime session from the C360 webhook payload.
+### Action
+1. Trigger an inbound WhatsApp message that hits the `/:platformUuid/whatsapp/messages` route.
+2. Query the MongoDB `runtime_whatsapp_sessions` collection for the created or updated session.
+### Expected Results
+- The session document has an `app_user_id` field that matches `payload.appUser._id` from the raw C360 webhook data.
+- The interpreter successfully passes this ID to C360 when dispatching the reply.
+
+---
+
+## TC-022: Channel360 HTTP Exception Logging
+### Description
+Verify that simulated HTTP exceptions to the C360 gateway are properly caught and audited in the System Exceptions log.
+### Action
+1. Cause an intentional error during an outbound WhatsApp message (e.g. invalid template or invalid credentials).
+2. Trigger the journey node that attempts to send the message.
+3. Check the `audit_system_exceptions` collection in the database or via the Admin console.
+### Expected Results
+- A new exception record of type `Channel360_REST_Error` is created.
+- The exception contains the `message`, `stack_trace`, and `request_context` detailing the failed HTTP request.
