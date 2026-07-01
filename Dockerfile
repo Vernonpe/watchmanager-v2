@@ -18,9 +18,9 @@ ENV NODE_ENV=production
 COPY apps/backend/package*.json ./backend/
 RUN cd backend && npm ci --only=production
 
-# Copy backend source files
+# Copy backend source files and scripts
 COPY apps/backend/src ./backend/src
-
+COPY apps/backend/scripts ./backend/scripts
 # Copy built frontend assets from Stage 1
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 
