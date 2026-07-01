@@ -339,3 +339,15 @@ Verify that simulated HTTP exceptions to the C360 gateway are properly caught an
 ### Expected Results
 - A new exception record of type `Channel360_REST_Error` is created.
 - The exception contains the `message`, `stack_trace`, and `request_context` detailing the failed HTTP request.
+
+---
+
+## TC-023: Dynamic Variable Interpolation Fallback
+### Description
+Verify that when a user types `{{variable_name}}` without a prefix, the interpreter correctly falls back to injecting the value from `session.collected_data.get('variable_name')`.
+### Action
+1. Configure a Prompt Text block to save an input variable `name`.
+2. Configure a subsequent Prompt Text block to send the message `Hi {{name}}`.
+3. In a WhatsApp session, trigger the flow, reply with "Vernon" to the first prompt.
+### Expected Results
+- The second block interpolates `{{name}}` successfully and sends "Hi Vernon" to the user, not just "Hi ".

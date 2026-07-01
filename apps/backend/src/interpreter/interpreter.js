@@ -361,7 +361,10 @@ function interpolateTemplate(template, session) {
       const dbResp = session.collected_data.get('db_response') || {};
       return dbResp[keys[1]] || '';
     }
-    return '';
+    
+    // Fallback: If no recognized prefix, assume it's a collected variable directly
+    const val = session.collected_data.get(path);
+    return val !== undefined && val !== null ? val : '';
   });
 }
 
