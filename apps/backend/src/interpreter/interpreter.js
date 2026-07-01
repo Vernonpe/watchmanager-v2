@@ -282,12 +282,12 @@ async function runInterpreterLoop(session, webhookPayload, credentials) {
   }
 
   // 5. Traverse Matching Output Edge
-  const activeEdge = journey.edges.find(e => e.source === currentNode.id && e.source_handle === exitHandle);
+  const activeEdge = journey.edges.find(e => e.source === currentNode.id && (e.sourceHandle === exitHandle || e.source_handle === exitHandle));
   if (activeEdge) {
     nextNodeId = activeEdge.target;
   } else {
     // Use fallback default edge if specific handle matching failed
-    const fallbackEdge = journey.edges.find(e => e.source === currentNode.id && e.source_handle === 'success');
+    const fallbackEdge = journey.edges.find(e => e.source === currentNode.id && (e.sourceHandle === 'success' || e.source_handle === 'success'));
     if (fallbackEdge) nextNodeId = fallbackEdge.target;
   }
 
@@ -322,9 +322,11 @@ async function runInterpreterLoop(session, webhookPayload, credentials) {
       await sendWhatsAppMessage(credentials, session.mobile, { text: "⚠️ Safe status confirmed. Let's resume your previous technical fault report:" }, session.app_user_id);
       await sendNodeWhatsAppPrompt(credentials, session.mobile, restoredNode, session);
     } else {
-      // Absolute clean finish - expire session record
-      session.expires_at = new Date();
-      await session.save();
+      // Absolute clean finish - archive session record
+      const sessionObj = session.toObject();
+      sessionObj.completion_reason = 'completed';
+      await mongoose.model('archived_whatsapp_sessions').create(sessionObj);
+      await session.deleteOne();
     }
   }
 }

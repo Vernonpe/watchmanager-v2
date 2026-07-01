@@ -126,6 +126,27 @@ const runtimeWhatsappSessionsSchema = new mongoose.Schema({
 runtimeWhatsappSessionsSchema.index({ tenant_id: 1, mobile: 1 }, { unique: true });
 runtimeWhatsappSessionsSchema.index({ expires_at: 1 }, { expireAfterSeconds: 0 });
 
+const archivedWhatsappSessionsSchema = new mongoose.Schema({
+  tenant_id: { type: String, ref: 'sys_tenants', required: true },
+  mobile: { type: String, required: true },
+  app_user_id: { type: String },
+  active_journey_id: { type: String, required: true },
+  current_node_id: { type: String, required: true },
+  priority: { type: Number, default: 1 },
+  collected_data: { type: Map, of: mongoose.Schema.Types.Mixed, default: {} },
+  state_history: [{ type: String }],
+  processed_message_ids: [{ type: String }],
+  whatsapp_number: { type: String },
+  whatsapp_name: { type: String },
+  last_user_message_at: { type: Date },
+  is_at_main_menu: { type: Boolean },
+  expires_at: { type: Date },
+  archived_at: { type: Date, default: Date.now },
+  completion_reason: { type: String, required: true }
+});
+archivedWhatsappSessionsSchema.index({ tenant_id: 1, mobile: 1 });
+archivedWhatsappSessionsSchema.index({ archived_at: -1 });
+
 const runtimeAlarmTriggersSchema = new mongoose.Schema({
   tenant_id: { type: String, ref: 'sys_tenants', required: true },
   message_id: { type: String, required: true, unique: true },
@@ -207,6 +228,7 @@ const BuilderJourneys = mongoose.model('builder_journeys', builderJourneysSchema
 const BuilderConversationalTemplates = mongoose.model('builder_conversational_templates', builderConversationalTemplatesSchema);
 const BuilderMenus = mongoose.model('builder_menus', builderMenusSchema);
 const RuntimeWhatsappSessions = mongoose.model('runtime_whatsapp_sessions', runtimeWhatsappSessionsSchema);
+const ArchivedWhatsappSessions = mongoose.model('archived_whatsapp_sessions', archivedWhatsappSessionsSchema);
 const RuntimeAlarmTriggers = mongoose.model('runtime_alarm_triggers', runtimeAlarmTriggersSchema);
 const AuditWebhookStream = mongoose.model('audit_webhook_stream', auditWebhookStreamSchema);
 const AuditApiOutboundLogs = mongoose.model('audit_api_outbound_logs', auditApiOutboundLogsSchema);
@@ -223,6 +245,7 @@ module.exports = {
   BuilderConversationalTemplates,
   BuilderMenus,
   RuntimeWhatsappSessions,
+  ArchivedWhatsappSessions,
   RuntimeAlarmTriggers,
   AuditWebhookStream,
   AuditApiOutboundLogs,

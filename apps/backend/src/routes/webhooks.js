@@ -23,6 +23,15 @@ async function executeInboundMessage(credentials, payload, messageId, mobile) {
     // 2. Resolve / Create Session Record
     let session = await mongoose.model('runtime_whatsapp_sessions').findOne({ tenant_id, mobile });
 
+    if (session && session.expires_at < new Date()) {
+      console.log(`[Webhook Session] Intercepted natively expired session for ${mobile}. Archiving.`);
+      const sessionObj = session.toObject();
+      sessionObj.completion_reason = 'expired';
+      await mongoose.model('archived_whatsapp_sessions').create(sessionObj);
+      await session.deleteOne();
+      session = null;
+    }
+
     const userMessageText = (payload.messages && payload.messages[0] && payload.messages[0].text ? payload.messages[0].text : (payload.message && payload.message.text || '')).trim().toLowerCase();
 
     if (!session) {

@@ -7,14 +7,37 @@ const loading = ref(true);
 const error = ref('');
 const pollingInterval = ref(null);
 
+const statusFilter = ref('active');
+const dateFilter = ref('all');
+const customStartDate = ref('');
+const customEndDate = ref('');
+
 const fetchSessions = async () => {
+  loading.value = true;
   try {
-    const res = await axios.get('/api/admin/sessions/active');
+    let url = `/api/admin/sessions?status=${statusFilter.value}`;
+    
+    if (statusFilter.value === 'past') {
+      if (dateFilter.value === 'today') {
+        const today = new Date().toISOString().split('T')[0];
+        url += `&startDate=${today}&endDate=${today}`;
+      } else if (dateFilter.value === 'last_week') {
+        const today = new Date();
+        const lastWeek = new Date(today);
+        lastWeek.setDate(lastWeek.getDate() - 7);
+        url += `&startDate=${lastWeek.toISOString().split('T')[0]}&endDate=${today.toISOString().split('T')[0]}`;
+      } else if (dateFilter.value === 'custom') {
+        if (customStartDate.value) url += `&startDate=${customStartDate.value}`;
+        if (customEndDate.value) url += `&endDate=${customEndDate.value}`;
+      }
+    }
+
+    const res = await axios.get(url);
     sessions.value = res.data || [];
     error.value = '';
   } catch (err) {
-    error.value = err.response?.data?.error || err.message || 'Failed to fetch active sessions';
-    console.error('Failed fetching active sessions:', err);
+    error.value = err.response?.data?.error || err.message || 'Failed to fetch sessions';
+    console.error('Failed fetching sessions:', err);
   } finally {
     loading.value = false;
   }
@@ -32,8 +55,12 @@ const terminateSession = async (mobile) => {
 
 onMounted(() => {
   fetchSessions();
-  // Auto-refresh every 5 seconds for live observability
-  pollingInterval.value = setInterval(fetchSessions, 5000);
+  // Auto-refresh every 5 seconds for live observability if viewing active sessions
+  pollingInterval.value = setInterval(() => {
+    if (statusFilter.value === 'active') {
+      fetchSessions();
+    }
+  }, 5000);
 });
 
 onUnmounted(() => {
@@ -41,23 +68,49 @@ onUnmounted(() => {
     clearInterval(pollingInterval.value);
   }
 });
+
+// Watch for filter changes to re-fetch
+const onFilterChange = () => {
+  fetchSessions();
+};
 </script>
 
 <template>
   <div class="page-container fade-in">
     <header class="page-header">
       <div class="header-title">
-        <h1>Live Active Sessions</h1>
-        <p class="subtitle">Monitor and debug in-flight WhatsApp conversational sessions</p>
+        <h1>WhatsApp Sessions</h1>
+        <p class="subtitle">Monitor active sessions and review historical conversation data</p>
       </div>
-      <button class="glass-btn glass-btn-primary" @click="fetchSessions">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="23 4 23 10 17 10" />
-          <polyline points="1 20 1 14 7 14" />
-          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-        </svg>
-        Refresh Now
-      </button>
+      
+      <div class="filters-row">
+        <select v-model="statusFilter" class="glass-input select-input" @change="onFilterChange">
+          <option value="active">Active Sessions</option>
+          <option value="past">Past Sessions</option>
+        </select>
+
+        <select v-if="statusFilter === 'past'" v-model="dateFilter" class="glass-input select-input" @change="onFilterChange">
+          <option value="all">All Time</option>
+          <option value="today">Today</option>
+          <option value="last_week">Last 7 Days</option>
+          <option value="custom">Custom Range</option>
+        </select>
+
+        <div v-if="statusFilter === 'past' && dateFilter === 'custom'" class="custom-dates">
+          <input type="date" v-model="customStartDate" class="glass-input date-input" @change="onFilterChange" />
+          <span>to</span>
+          <input type="date" v-model="customEndDate" class="glass-input date-input" @change="onFilterChange" />
+        </div>
+
+        <button class="glass-btn glass-btn-primary refresh-btn" @click="fetchSessions">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4 23 10 17 10" />
+            <polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+          </svg>
+          Refresh Now
+        </button>
+      </div>
     </header>
 
     <div v-if="error" class="error-banner">
@@ -67,7 +120,7 @@ onUnmounted(() => {
     <div class="glass-panel main-content">
       <div v-if="loading && sessions.length === 0" class="loading-state">
         <div class="spinner"></div>
-        <p>Loading active sessions...</p>
+        <p>Loading sessions...</p>
       </div>
 
       <div v-else-if="sessions.length === 0" class="empty-state">
@@ -76,8 +129,8 @@ onUnmounted(() => {
           <line x1="12" y1="8" x2="12" y2="12" />
           <line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
-        <h2>No Active Sessions</h2>
-        <p>There are currently no active users traversing any WhatsApp journeys.</p>
+        <h2>No {{ statusFilter === 'active' ? 'Active' : 'Past' }} Sessions</h2>
+        <p>There are currently no users traversing any WhatsApp journeys matching your filters.</p>
       </div>
 
       <div v-else class="table-container">
@@ -85,12 +138,12 @@ onUnmounted(() => {
           <thead>
             <tr>
               <th>Mobile / User</th>
-              <th>Active Journey</th>
+              <th>Journey</th>
               <th>Current Node</th>
               <th>Collected Data Preview</th>
               <th>Last Activity</th>
-              <th>Expires At</th>
-              <th>Actions</th>
+              <th>{{ statusFilter === 'active' ? 'Expires At' : 'Status' }}</th>
+              <th v-if="statusFilter === 'active'">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -101,9 +154,12 @@ onUnmounted(() => {
               <td class="data-preview">
                 <pre class="json-preview">{{ JSON.stringify(session.collected_data || {}, null, 2) }}</pre>
               </td>
-              <td>{{ new Date(session.last_user_message_at).toLocaleTimeString() }}</td>
-              <td class="expires-cell">{{ new Date(session.expires_at).toLocaleTimeString() }}</td>
-              <td>
+              <td>{{ new Date(session.last_user_message_at || session.archived_at || new Date()).toLocaleString() }}</td>
+              <td :class="{ 'expires-cell': statusFilter === 'active' }">
+                <span v-if="statusFilter === 'active'">{{ new Date(session.expires_at).toLocaleTimeString() }}</span>
+                <span v-else class="badge status-badge">{{ session.status }}</span>
+              </td>
+              <td v-if="statusFilter === 'active'">
                 <button class="action-btn danger-btn" @click="terminateSession(session.mobile)" title="Force Terminate Session">
                   Terminate
                 </button>
@@ -129,7 +185,7 @@ onUnmounted(() => {
 .page-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .header-title h1 {
@@ -145,6 +201,30 @@ onUnmounted(() => {
   color: var(--text-muted);
   margin: 0;
   font-size: 1rem;
+}
+
+.filters-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.custom-dates {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.select-input, .date-input {
+  background: rgba(0,0,0,0.2);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.1);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.9rem;
 }
 
 .error-banner {
@@ -238,6 +318,13 @@ onUnmounted(() => {
   background: rgba(14, 165, 233, 0.15);
   color: var(--accent-cyan);
   border: 1px solid rgba(14, 165, 233, 0.3);
+}
+
+.status-badge {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  text-transform: uppercase;
 }
 
 .data-preview {

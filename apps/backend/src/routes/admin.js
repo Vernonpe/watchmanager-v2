@@ -298,11 +298,30 @@ router.get('/dashboard_stats', async (req, res) => {
 });
 
 /**
- * Active Sessions list
+ * Active and Archived Sessions list
  */
 router.get('/sessions', async (req, res) => {
   try {
-    const list = await mongoose.model('runtime_whatsapp_sessions').find({ tenant_id: req.tenant_id }).lean();
+    const { status, startDate, endDate } = req.query;
+    let query = { tenant_id: req.tenant_id };
+
+    if (startDate || endDate) {
+      const dateField = status === 'past' ? 'archived_at' : 'last_user_message_at';
+      query[dateField] = {};
+      if (startDate) query[dateField].$gte = new Date(startDate);
+      if (endDate) {
+        let end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        query[dateField].$lte = end;
+      }
+    }
+
+    const collectionName = status === 'past' ? 'archived_whatsapp_sessions' : 'runtime_whatsapp_sessions';
+    let list = await mongoose.model(collectionName).find(query).sort({ last_user_message_at: -1 }).lean();
+    
+    // Add status property for the frontend
+    list = list.map(s => ({ ...s, status: status === 'past' ? s.completion_reason || 'archived' : 'active' }));
+
     res.status(200).json(list);
   } catch (err) {
     res.status(500).json({ error: err.message });
