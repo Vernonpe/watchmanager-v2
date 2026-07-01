@@ -101,6 +101,13 @@ const seedNodes = async () => {
         icon_emoji: '↪️',
         palette_badge_class: 'action-badge',
         default_config: { target_journey_id: '' }
+      },
+      {
+        type: 'action_end',
+        label: 'Terminate Journey',
+        icon_emoji: '🛑',
+        palette_badge_class: 'end-badge',
+        default_config: { end_message: '' }
       }
     ];
 

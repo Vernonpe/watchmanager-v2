@@ -140,6 +140,19 @@ async function runInterpreterLoop(session, webhookPayload, credentials) {
     session.state_history.push(currentNode.id);
   } 
   
+  else if (currentNode.type === 'prompt_text' && !currentNode.config.await_response) {
+    // Send the message and immediately flow to the next connected node
+    await sendNodeWhatsAppPrompt(credentials, session.mobile, currentNode, session);
+  }
+  
+  else if (currentNode.type === 'action_end') {
+    if (currentNode.config && currentNode.config.end_message) {
+      const msg = interpolateTemplate(currentNode.config.end_message, session);
+      await sendWhatsAppMessage(credentials, session.mobile, { text: msg }, session.app_user_id);
+    }
+    exitHandle = 'terminate'; // No outgoing edges, forces nextNodeId = null
+  }
+  
   else if (currentNode.type === 'prompt_buttons' || currentNode.type === 'prompt_list') {
     let resolvedChoice = selectedChoiceId;
     
@@ -301,7 +314,8 @@ async function runInterpreterLoop(session, webhookPayload, credentials) {
       nextNode.type === 'action_http' || 
       nextNode.type === 'action_db' ||
       nextNode.type === 'condition_split' ||
-      (nextNode.type === 'prompt_text' && !nextNode.config.await_response)
+      (nextNode.type === 'prompt_text' && !nextNode.config.await_response) ||
+      nextNode.type === 'action_end'
     )) {
       return runInterpreterLoop(session, webhookPayload, credentials);
     } else if (nextNode) {

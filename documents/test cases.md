@@ -351,3 +351,17 @@ Verify that when a user types `{{variable_name}}` without a prefix, the interpre
 3. In a WhatsApp session, trigger the flow, reply with "Vernon" to the first prompt.
 ### Expected Results
 - The second block interpolates `{{name}}` successfully and sends "Hi Vernon" to the user, not just "Hi ".
+
+---
+
+## TC-024: Action End Terminate Journey Execution
+### Description
+Verify that the `action_end` Terminate Journey node executes correctly, optionally sends a final message with variable interpolation, and then cleanly terminates the session by not transitioning to any further node.
+### Action
+1. Drag a Terminate Journey node onto the canvas and connect it to a previous prompt.
+2. Configure it with a final message "Goodbye {{name}}" (assuming `name` was previously collected).
+3. Trigger the journey in WhatsApp and reach the end node.
+### Expected Results
+- The interpreter dispatches the "Goodbye Vernon" text.
+- The interpreter encounters a `null` edge and concludes the journey normally.
+- The UI properly restricts the node from having any outbound edge connection handles.

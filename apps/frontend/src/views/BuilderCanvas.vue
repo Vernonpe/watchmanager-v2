@@ -410,6 +410,15 @@
               </div>
             </template>
 
+            <template #node-action_end="props">
+              <div class="custom-node end-node" style="border-left: 4px solid var(--accent-red);">
+                <div class="node-header"><span class="icon">🛑</span> Terminate Journey</div>
+                <div class="node-custom-label" v-if="(nodes.find(n => n.id === props.id)?.label)">{{ nodes.find(n => n.id === props.id)?.label }}</div>
+                <div class="node-body"><i>Message:</i> {{ (nodes.find(n => n.id === props.id)?.config)?.end_message ? 'Yes' : 'None' }}</div>
+                <Handle type="target" :position="Position.Left" id="default" class="custom-handle" />
+              </div>
+            </template>
+
           </VueFlow>
         </div>
 
@@ -715,6 +724,19 @@
                     <option value="">-- Select a Blueprint --</option>
                     <option v-for="j in journeys" :key="j.journey_id" :value="j.journey_id">{{ j.name }}</option>
                   </select>
+                </div>
+              </div>
+              <!-- 8. Action End configuration -->
+              <div v-if="selectedNode.type === 'action_end'">
+                <div class="form-group">
+                  <label>Final Termination Message (Optional)</label>
+                  <textarea v-model="selectedNode.config.end_message" class="glass-input" rows="3" placeholder="Enter a final message before ending the session..."></textarea>
+                  <div class="variable-picker" v-if="availableVariables.length > 0">
+                    <span class="picker-label">Insert Token:</span>
+                    <button v-for="v in availableVariables" :key="v" class="var-pill" @click="insertVariable(v, 'end_message')" title="Insert variable">
+                      {{ v }}
+                    </button>
+                  </div>
                 </div>
               </div>
 
