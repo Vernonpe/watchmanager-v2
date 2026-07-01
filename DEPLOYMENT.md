@@ -24,19 +24,32 @@ Watch Manager V2 relies on a dynamic, database-driven architecture for its Node 
 
 **Whenever you deploy a new version to production, you MUST run the seeder scripts to ensure any new Node types or updated default configurations are pushed into the database.**
 
-From the root of the project, run the following commands. These scripts will automatically read the `MONGO_URI` from your `apps/backend/.env` file.
-
+If you are running the application natively using Node.js:
 ```bash
-# 1. Navigate to the backend directory
+# Navigate to the backend directory
 cd apps/backend
 
-# 2. Run the Node Palette Seeder
-# This safely wipes the old palette and injects the latest node definitions
+# Run the Node Palette Seeder
 node scripts/seed_nodes.js
 
-# 3. Run the Tenant Seeder
-# This ensures the default demo tenant and Channel360 credentials exist (safe to run multiple times)
+# Run the Tenant Seeder
 node scripts/seed_tenant.js
+```
+
+### Docker Deployments (Recommended)
+
+If you are running Watch Manager V2 using Docker, you must execute the script *inside* your running backend container.
+
+> [!WARNING]
+> **Docker Upgrades:** If you just ran `git pull` to get new code on your host, you **must** rebuild your container image (e.g. `docker-compose up -d --build`) before seeding. Otherwise, your container will not have the updated script!
+
+```bash
+# Find your backend container name (e.g., watchmanager-app-1)
+docker ps
+
+# Execute the seeder directly inside the container
+docker exec -it <container_name> node backend/scripts/seed_nodes.js
+docker exec -it <container_name> node backend/scripts/seed_tenant.js
 ```
 
 > **Note on Upgrades:** Running `seed_nodes.js` will overwrite the `sys_node_definitions` collection. This is intentional and required to push new palette updates to the frontend UI. It does **not** affect active user journeys or session data.
