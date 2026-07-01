@@ -365,3 +365,29 @@ Verify that the `action_end` Terminate Journey node executes correctly, optional
 - The interpreter dispatches the "Goodbye Vernon" text.
 - The interpreter encounters a `null` edge and concludes the journey normally.
 - The UI properly restricts the node from having any outbound edge connection handles.
+
+---
+
+## TC-025: Canvas Custom Node Label Preservation
+### Description
+Verify that when a user customizes a node's display label (name) on the canvas, the label is successfully pushed to the backend and preserved across page reloads.
+### Action
+1. Drag any node onto the Builder Canvas.
+2. Select the node and change its label to a custom string in the configuration drawer.
+3. Save the Blueprint.
+4. Refresh the page or reload the Blueprint.
+### Expected Results
+- The saved blueprint payload includes `label: n.label` in the mapped `nodes` array.
+- The node re-renders with the customized label after the page refresh.
+
+---
+
+## TC-026: Prompt Text Default Await Response
+### Description
+Verify that newly added Prompt Text nodes default to awaiting a user response, to prevent accidental pass-through execution.
+### Action
+1. Open the Journey Builder.
+2. Drag a new `Prompt Text` node from the palette onto the Canvas.
+3. Select the node to open the configuration drawer.
+### Expected Results
+- The "Await user response" toggle switch is enabled (checked `true`) by default.
