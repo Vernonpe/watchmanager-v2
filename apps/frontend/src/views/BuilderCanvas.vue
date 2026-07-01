@@ -1287,6 +1287,7 @@ const saveJourney = async () => {
       id: n.id,
       type: n.type,
       position: n.position,
+      label: n.label,
       config: n.config
     })),
     edges: edges.value.map(e => ({
