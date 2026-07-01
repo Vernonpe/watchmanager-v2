@@ -23,7 +23,7 @@ async function executeInboundMessage(credentials, payload, messageId, mobile) {
     // 2. Resolve / Create Session Record
     let session = await mongoose.model('runtime_whatsapp_sessions').findOne({ tenant_id, mobile });
 
-    const userMessageText = (payload.message && payload.message.text || '').trim().toLowerCase();
+    const userMessageText = (payload.messages && payload.messages[0] && payload.messages[0].text ? payload.messages[0].text : (payload.message && payload.message.text || '')).trim().toLowerCase();
 
     if (!session) {
       console.log(`[Webhook Session] No session found. Resolving journey for trigger: "${userMessageText}"`);
@@ -147,8 +147,8 @@ router.post('/webhook/whatsapp', async (req, res) => {
   const payload = req.body;
   const orgId = req.headers['x-channel360-org-id'] || payload.orgId || (payload.app && payload.app._id);
   
-  const messageId = payload.messageId || (payload.message && payload.message.id) || (payload.trigger === 'message:appUser' && payload.message && payload.message._id);
-  const mobile = payload.mobile || (payload.message && payload.message.from) || (payload.appUser && payload.appUser.externalId) || (payload.appUser && payload.appUser.raw && payload.appUser.raw.from);
+  const messageId = payload.messageId || (payload.message && payload.message.id) || (payload.messages && payload.messages[0] && payload.messages[0]._id) || (payload.trigger === 'message:appUser' && payload.message && payload.message._id);
+  const mobile = payload.mobile || (payload.message && payload.message.from) || (payload.client && payload.client.externalId) || (payload.client && payload.client.raw && payload.client.raw.from) || (payload.appUser && payload.appUser.externalId) || (payload.appUser && payload.appUser.raw && payload.appUser.raw.from);
 
   if (!orgId || !mobile || !messageId) {
     console.warn('[Webhook] Missing required variables orgId, mobile, or messageId. Webhook ignored.');
@@ -190,8 +190,8 @@ router.post('/:platformUuid/whatsapp/messages', async (req, res) => {
   const { platformUuid } = req.params;
   const payload = req.body;
   
-  const messageId = payload.messageId || (payload.message && payload.message.id) || (payload.trigger === 'message:appUser' && payload.message && payload.message._id);
-  const mobile = payload.mobile || (payload.message && payload.message.from) || (payload.appUser && payload.appUser.externalId) || (payload.appUser && payload.appUser.raw && payload.appUser.raw.from);
+  const messageId = payload.messageId || (payload.message && payload.message.id) || (payload.messages && payload.messages[0] && payload.messages[0]._id) || (payload.trigger === 'message:appUser' && payload.message && payload.message._id);
+  const mobile = payload.mobile || (payload.message && payload.message.from) || (payload.client && payload.client.externalId) || (payload.client && payload.client.raw && payload.client.raw.from) || (payload.appUser && payload.appUser.externalId) || (payload.appUser && payload.appUser.raw && payload.appUser.raw.from);
 
   if (!platformUuid || !mobile || !messageId) {
     console.warn('[Webhook Dynamic] Missing required variables mobile, messageId or platformUuid. Webhook ignored.');

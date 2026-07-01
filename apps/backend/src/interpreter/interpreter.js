@@ -6,8 +6,8 @@ const { checkAndRestoreSession } = require('./preemptionManager');
  * Main state machine graph interpreter loop
  */
 async function runInterpreterLoop(session, webhookPayload, credentials) {
-  const userMessageText = (webhookPayload.message && webhookPayload.message.text || '').trim();
-  const selectedChoiceId = webhookPayload.message && webhookPayload.message.payload; // From quick-replies / lists
+  const userMessageText = (webhookPayload.messages && webhookPayload.messages[0] && webhookPayload.messages[0].text ? webhookPayload.messages[0].text : (webhookPayload.message && webhookPayload.message.text || '')).trim();
+  const selectedChoiceId = webhookPayload.messages && webhookPayload.messages[0] && webhookPayload.messages[0].payload ? webhookPayload.messages[0].payload : (webhookPayload.message && webhookPayload.message.payload); // From quick-replies / lists
 
   // 1. Load active compiled journey graph
   const journey = await mongoose.model('builder_journeys').findOne({
