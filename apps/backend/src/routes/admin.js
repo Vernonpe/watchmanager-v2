@@ -336,7 +336,7 @@ router.get('/logs', async (req, res) => {
         type: w.direction === 'inbound' ? 'Inbound WhatsApp' : 'Delivery Receipt',
         category: w.direction === 'inbound' ? 'inbound' : 'receipt',
         summary: w.direction === 'inbound' 
-          ? `From: ${w.payload.mobile || (w.payload.message && w.payload.message.from) || 'Unknown'} - Text: "${w.payload.message && w.payload.message.text || 'N/A'}"`
+          ? `From: ${w.payload.mobile || (w.payload.client && w.payload.client.externalId) || (w.payload.message && w.payload.message.from) || 'Unknown'} - Text: "${(w.payload.messages && w.payload.messages[0] && w.payload.messages[0].text) || (w.payload.message && w.payload.message.text) || 'N/A'}"`
           : `Delivery confirmation callback`,
         details: w.payload
       })));

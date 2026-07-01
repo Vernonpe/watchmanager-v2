@@ -204,7 +204,7 @@ onBeforeUnmount(() => {
 const getMessageMobile = (log) => {
   const p = log.payload;
   if (log.direction === 'inbound') {
-    return p.mobile || (p.message && p.message.from) || 'Unknown Client';
+    return p.mobile || (p.client && p.client.externalId) || (p.message && p.message.from) || 'Unknown Client';
   } else {
     return p.recipient || 'Unknown Client';
   }
@@ -213,7 +213,7 @@ const getMessageMobile = (log) => {
 const getMessageText = (log) => {
   const p = log.payload;
   if (log.direction === 'inbound') {
-    return (p.message && p.message.text) || (p.message && p.message.payload) || '[Media/Button Tap]';
+    return (p.messages && p.messages[0] && p.messages[0].text) || (p.message && p.message.text) || (p.message && p.message.payload) || '[Media/Button Tap]';
   } else {
     return (p.payload && p.payload.text) || (p.payload && p.payload.button_text) || '[Outbound Template]';
   }
